@@ -1,0 +1,54 @@
+name: taxonomist
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  
+  # DL
+  - pytorch
+  - torchvision
+  - pytorch-cuda=11.7
+  - pytorch-lightning=1.6
+  - optuna
+  - wandb
+  
+  # DS
+  - numpy
+  - scipy
+  - scikit-learn>=0.22
+  - scikit-image
+  - pandas>=1.0.0
+  - pandas-profiling
+  - opencv
+  - pillow>=6.0.0
+  - matplotlib
+  - seaborn
+  - bokeh
+  - tqdm
+  - numba
+  - dask
+  - dask-ml
+  - joblib 
+
+  # ipython + notebooks
+  - ipython
+  - notebook
+  - jupyterlab
+  - ipywidgets
+  - ipykernel
+
+  # Testing + linting
+  - pylint
+  - pytest
+
+  # Others
+  - openpyxl
+
+  - pip
+  - pip:
+    - timm
+    - black
+    - albumentations
