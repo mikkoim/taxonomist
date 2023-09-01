@@ -3,13 +3,65 @@ import pandas as pd
 import argparse
 from sklearn.model_selection import StratifiedGroupKFold, GroupKFold
 
+DESCRIPTION = """
+Takes a dataset csv file and splits it to train, test and validation splits.
+Assumes that a single row corresponds to a single sample, i.e. image.
+Keeps the csv structure as is, but adds N columns, where N is the number of 
+cross-validation splits.
+Each column has string values 'train', 'test' and 'val', denoting the split 
+the sample 
+belongs to.
+
+
+The 'test' sets are mutually exclusive, and together make up the full dataset.
+
+
+For categorical variables, the splits are stratified, and samples are 
+distributed equally
+based on the 'target_col' parameter.
+
+
+If dataset has groups that might induce data leakage, groups can be separated 
+across splits
+with the 'group_col' parameter. All samples of a group will then belong to a 
+single split.
+
+Creates a log of class counts in different splits along the final file.
+Output file is named with the original file, number of splits and the target 
+column info
+"""
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--csv_path", type=str, required=True)
-    parser.add_argument("--target_col", type=str, required=True)
-    parser.add_argument("--group_col", type=str, required=True)
-    parser.add_argument("--n_splits", type=int, default=5)
-    parser.add_argument("--verbose", type=int, default=1)
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+
+    parser.add_argument(
+        "--csv_path", type=str, help="Path to input csv file", required=True
+    )
+
+    parser.add_argument(
+        "--target_col",
+        type=str,
+        help="Target variable column. Stratification " "is performed based on this",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--group_col",
+        type=str,
+        help="Group column. Groups are non-overlapping " "across train-test-val splits",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--n_splits", type=int, help="Number of splits. Default 5", default=5
+    )
+
+    parser.add_argument(
+        "--verbose",
+        type=int,
+        help="If set to 1, prints information on data " "splits to console",
+        default=1,
+    )
 
     parser.add_argument("--out_folder", type=str, default=".")
 
@@ -54,7 +106,7 @@ if __name__ == "__main__":
 
     # Create new columns
     for fold in range(args.n_splits):
-        df.assign(**{str(fold): 0})
+        df = df.assign(**{str(fold): "0"})
 
     # Assign column values
     for fold in range(args.n_splits):
@@ -74,18 +126,30 @@ if __name__ == "__main__":
 
     # Print information on data splits
     if (args.verbose == 1) and is_categorical:
-        for f in range(args.n_splits):
-            infodf = pd.DataFrame()
-            infodf.index = df[args.target_col].unique()
-            vc = lambda f, set_: df[df[str(f)] == set_][args.target_col].value_counts()
+        log_fname = out_folder / (out_fname.stem + "_log.txt")
+        with open(log_fname, "w") as file:
+            for f in range(args.n_splits):
+                infodf = pd.DataFrame()
+                infodf.index = df[args.target_col].unique()
 
-            infodf[f"train_{str(f)}"] = vc(f, "train")
-            infodf[f"val_{str(f)}"] = vc(f, "val")
-            infodf[f"test_{str(f)}"] = vc(f, "test")
-            print(f"Fold {f}")
-            print(infodf.fillna(0).astype(int))
-            m = infodf[infodf.isna().any(axis=1)]
-            if len(m) > 0:
-                print("\nMissing classes:")
-                print(m)
-            print()
+                def vc(f, set_):
+                    return df[df[str(f)] == set_][args.target_col].value_counts()
+
+                infodf[f"train_{str(f)}"] = vc(f, "train")
+                infodf[f"val_{str(f)}"] = vc(f, "val")
+                infodf[f"test_{str(f)}"] = vc(f, "test")
+                p = str(f"Fold {f}\n")
+                print(p)
+                file.writelines([p])
+
+                p = str(infodf.fillna(0).astype(int))
+                print(p)
+                file.writelines([p])
+
+                m = infodf[infodf.isna().any(axis=1)]
+                if len(m) > 0:
+                    p = f"\nMissing classes:\n{str(m.fillna(0).astype(int))}"
+                    print(p)
+                    file.writelines([p])
+                print()
+                file.write("\n\n")

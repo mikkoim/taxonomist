@@ -16,6 +16,12 @@ python scripts\\preprocessing\\process_rodi.py `
     --out_folder="data\\processed\\rodi"
 ```
 
+```bash
+python scripts/preprocessing/process_rodi.py \
+    --csv_path="data/raw/rodi/Induced_Organism_Drift_2022_annotations.csv" \
+    --out_folder="data/processed/rodi"
+```
+
 ## 4. Train-test-splits
 
 ```powershell
@@ -25,6 +31,15 @@ python scripts/01_train_test_split.py `
     --group_col "ind_id" `
     --n_splits 5 `
     --out_folder "data\\processed\\rodi"
+```
+
+```bash
+python scripts/01_train_test_split.py \
+    --csv_path "data/processed/rodi/01_rodi_processed.csv" \
+    --target_col "family" \
+    --group_col "ind_id" \
+    --n_splits 5 \
+    --out_folder "data/processed/rodi"
 ```
 
 ## 5. Training

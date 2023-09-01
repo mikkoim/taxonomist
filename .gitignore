@@ -140,7 +140,7 @@ dmypy.json
 /results
 /reports
 /old
-/output
+/outputs
 /TykkyEnv
 *.sif
 *.txt

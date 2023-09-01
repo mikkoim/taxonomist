@@ -1,9 +1,7 @@
 import argparse
-import os
 
-import numpy as np
 import pandas as pd
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import taxonomist as src
 import torch
 from pathlib import Path
@@ -34,10 +32,13 @@ if __name__ == "__main__":
         map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     )
 
+    # Class / label map loading
     if args.class_map != "none":
         class_map = src.load_class_map(args.class_map)
+        n_classes = len(class_map["fwd_dict"])
     else:
-        class_map = {"fwd": None, "inv": None}
+        class_map = {"fwd": None, "inv": None, "fwd_dict": None, "inv_dict": None}
+        n_classes = 1
 
     dm = src.LitDataModule(
         data_folder=args.data_folder,
@@ -58,7 +59,9 @@ if __name__ == "__main__":
     model.label_transform = class_map["inv"]
     model.freeze()
 
-    trainer = pl.Trainer(gpus=gpu_count, fast_dev_run=args.smoke_test, logger=False)
+    trainer = pl.Trainer(
+        devices="auto", accelerator="auto", fast_dev_run=args.smoke_test, logger=False
+    )
 
     if not args.tta:
         trainer.test(model, dm)
@@ -73,7 +76,7 @@ if __name__ == "__main__":
 
     df_pred = pd.DataFrame({"y_true": y_true, "y_pred": y_pred})
 
-    if args.n_classes > 1:
+    if n_classes > 1:
         softmax = model.softmax
         n_classes = softmax.shape[1]
         classes = class_map["inv"](list(range(n_classes)))

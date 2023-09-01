@@ -10,28 +10,36 @@ dependencies:
   # DL
   - pytorch
   - torchvision
-  - pytorch-cuda=11.7
-  - pytorch-lightning=1.6
+  - pytorch-cuda
+  - lightning
   - optuna
   - wandb
-  
+  - transformers
+  - huggingface_hub
+  - datasets
+  - torchmetrics
+
   # DS
   - numpy
   - scipy
-  - scikit-learn>=0.22
+  - scikit-learn
   - scikit-image
-  - pandas>=1.0.0
+  - pandas
   - pandas-profiling
   - opencv
   - pillow>=6.0.0
-  - matplotlib
-  - seaborn
-  - bokeh
-  - tqdm
   - numba
   - dask
   - dask-ml
-  - joblib 
+  - joblib
+
+  # Plotting + viz
+  - matplotlib
+  - seaborn
+  - bokeh
+  - plotly
+  - streamlit>=1.21
+  - gradio
 
   # ipython + notebooks
   - ipython
@@ -40,11 +48,11 @@ dependencies:
   - ipywidgets
   - ipykernel
 
-  # Testing + linting
+  # Others
+  - tqdm
   - pylint
   - pytest
-
-  # Others
+  - ruff
   - openpyxl
 
   - pip
@@ -52,3 +60,6 @@ dependencies:
     - timm
     - black
     - albumentations
+    - omegaconf
+    - pygbif
+    - bigtree

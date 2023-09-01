@@ -4,8 +4,12 @@ import numpy as np
 
 import argparse
 
+DESCRIPTION = """
+Combines the outputs from multiple cross-validation folds into a since prediction vector.
+"""
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
 
     parser.add_argument("--model_folder", type=str)
     parser.add_argument("--tag", type=str)

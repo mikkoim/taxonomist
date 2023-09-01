@@ -1,4 +1,12 @@
-"""
+import argparse
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+from omegaconf import OmegaConf
+from collections import defaultdict
+
+DESCRIPTION = """
 Combines evaluation results for several models
 
 Input:
@@ -27,16 +35,6 @@ Output:
     prints the best performing models
 """
 
-import argparse
-from pathlib import Path
-from pprint import pprint
-
-import numpy as np
-import pandas as pd
-from omegaconf import OmegaConf
-from tqdm import tqdm
-from collections import defaultdict, OrderedDict
-
 
 def print_top_scores(df):
     def print_top(d):
@@ -51,10 +49,16 @@ def print_top_scores(df):
     for metric in sorted(conf.metrics.keys()):
         ascending = conf.metrics[metric].minimize
         if ascending:
-            comp = lambda x, y: x < y
+
+            def comp(x, y):
+                return x < y
+
             q_limit = "q_u"
         else:
-            comp = lambda x, y: x > y
+
+            def comp(x, y):
+                return x > y
+
             q_limit = "q_l"
 
         df_sort = df.query("metric==@metric").sort_values(
@@ -86,7 +90,7 @@ def print_top_scores(df):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
 
     parser.add_argument("--root_dir", type=str)
     parser.add_argument("--config", type=str)

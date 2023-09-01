@@ -4,13 +4,13 @@ Taxonomist is a pipeline for classifying images of species, with a focus on scie
 
 Features:
 - Image classification and regression with state-of-the-art Deep Learning models from the [PyTorch Image Models (`timm`)](https://timm.fast.ai/) library.
-- Easy to modify. Operates around simple python scripts and `.csv`-files without complicated modules
-- Opinionated folder structure designed for scientific, reproducible experiments
-- Easy result comparisons between experiments
+- Transparent and easy to modify. Operates around simple python scripts and `.csv`-files without opaque modules and functions with side-effects.
+- Opinionated folder structure designed for scientific, reproducible experiments.
+- Easy result comparisons between experiments and across datasets.
 - Produces results in commonly used `.csv` format that can be further analyzed with other tools
-- Implements best practices for classifier evaluation
+- Implements best practices for classifier evaluation, such as bootstrap confidence intervals and cross-validation.
 
-In essence, Taxonomist is a framework around [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) which itself is a framework for the PyTorch deep learning library. 
+In essence, Taxonomist is a framework around [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/), providing an opinionated project structure for scientific experiments using supervised learning on hierarchical data.
 # Installation
 
 Clone the repository
@@ -52,22 +52,63 @@ pip install -e .
 To use Taxonomist with your own data, you have to produce data loading functions to make your dataset compatible with the pipeline.
 
 1. Load datasets
-    - Write loading instructions (example in `docs/dataset_loading.md`)
-    - (Optional: Perform raw data analysis (example in `notebooks/01_raw_data_analysis_rodi.ipynb`))
+    - Write loading instructions (examples in `docs/dataset_loading.md`)
+    - (Optional: Perform raw data analysis (examples in `notebooks/`))
 2. Preprocessing
-    - Create a preprocessing script (example in `scripts/preprocessing/process_rodi.py`)
-    - Add data loading functions to the library (example in `src/taxonomist/datasets.py`)
+    - Create a preprocessing script (examples in `scripts/preprocessing/`)
+    - Add data loading functions to the library (examples in `src/taxonomist/datasets.py`)
 
 3. Workflow document
-    - Document your workflow (commands etc.) into a workflow file. (Example in `docs/workflows/00_workflow_rodi.md`)
+    - Document your workflow (commands etc.) into a workflow file. (Examples in `docs/workflows`)
 
 When these steps are complete, Taxonomist can automate the rest of the classification pipeline:
 
-4. Training
-5. Prediction
-6. Evaluation
+4. Train-test-val -splits
+5. Training
+6. Prediction
+    - Prediction with test-time augmentation
+    - Prediction for other datasets 
+7. Evaluation
     - Cross-validation
     - Grouping
-7. Comparison
+8. Comparison
 
-The final product is a `.csv` of cross-validated results with your dataset, that you can analyze and visualize with tools of your choice. (Examples coming soon.)
+Each step produces intermediary files in csv format, making custom analysis and modifications easy.
+
+# File system
+Taxonomist is based on an opinionated file system that produces following output files:
+
+- Model checkpoints (weights, hyperparameters)
+- Train-time augmentation visualizations
+- Predict-time augmentation visualizations
+- Prediction outputs as csv, with softmax scores for all classes
+- Grouped prediction outputs
+- Metrics for several models in csv format
+
+```
+Outputs
+├── Dataset A
+│   ├── Model A1
+│   │   ├── fold 0
+│   │   │   ├── model_a1-f0.ckpt (model weights)
+│   │   │   ├── aug-model_a1(augmentation visualizations)
+│   │   │   │   ├── aug-test.png
+│   │   │   │   ├── aug-train.png
+│   │   │   │   └── aug-val.png
+│   │   │   └── predictions (prediction outputs)
+│   │   │       ├── metrics
+│   │   │       │   └── model_a1-f0-test_aug_preds_metrics.csv
+│   │   │       ├── test_aug1
+│   │   │       │   ├── model_a1-f0-test_aug1_preds.csv
+│   │   │       │   └── model_a1-f0-test_aug1_preds_grouped.csv
+│   │   │       └── test_aug2
+│   │   │           └── ...
+│   │   └── fold 1
+│   │       └── ...
+│   └── Model A2
+│       └── ...
+├── Dataset B
+│   ├── Model B1
+│   └── ...
+└── ...
+```

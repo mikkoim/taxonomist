@@ -8,7 +8,7 @@ from pathlib import Path
 import albumentations as A
 import numpy as np
 import PIL.Image as Image
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import scipy.stats
 import timm
 import torch
@@ -24,18 +24,54 @@ from .datasets import preprocess_dataset
 
 
 def add_dataset_args(parser: argparse.ArgumentParser):
-    parser.add_argument("--data_folder", type=str, required=True)
-    parser.add_argument("--dataset_name", type=str, default="imagefolder")
-    parser.add_argument("--csv_path", type=str, default=None)
-    parser.add_argument("--fold", type=int, default=None)
-    parser.add_argument("--label", type=str, default=None)
-    parser.add_argument("--n_classes", type=int, default=1)
-    parser.add_argument("--class_map", type=str, default=None)
+    parser.add_argument(
+        "--data_folder",
+        type=str,
+        help="Folder where the data can be found. This folder is "
+        "used with the csv_path to produce final filenames for training",
+        required=True,
+    )
+    parser.add_argument(
+        "--dataset_name",
+        type=str,
+        help="The dataset name that is used to select the function that "
+        "determines how data should be loaded",
+        default="imagefolder",
+    )
+    parser.add_argument(
+        "--csv_path",
+        type=str,
+        help="Path to the csv file that contains label information for each sample. "
+        "Used along data_folder to produce final filenames for training."
+        "The csv should contain train-test-validation split info for all "
+        "cross-validation folds",
+        default=None,
+    )
+    parser.add_argument(
+        "--fold",
+        type=int,
+        help="The fold that is used for training. Found from the csv_path file.",
+        default=None,
+    )
+    parser.add_argument(
+        "--label",
+        type=str,
+        help="Label column. Found from the csv_path file.",
+        default=None,
+    )
+    parser.add_argument(
+        "--class_map",
+        type=str,
+        help="Refers to a list of classes found in the dataset. Provides "
+        "an unambiguous reference between strings and indices, even if some folds "
+        "don't contain all classes",
+        default=None,
+    )
     return parser
 
 
 def add_dataloader_args(parser: argparse.ArgumentParser):
-    parser.add_argument("--imsize", type=int)
+    parser.add_argument("--imsize", type=int, help="Inputs are resized to this size")
     parser.add_argument("--batch_size", type=int)
     parser.add_argument("--aug", type=str, default="only-flips")
     parser.add_argument(
@@ -144,6 +180,8 @@ def load_class_map(fname):
         # class_map["inv"] = lambda x: np.array([inv[int(v)] for v in x])
         class_map["fwd"] = lambda x: np.array([fwd[v] for v in x])
         class_map["inv"] = lambda x: np.array([inv[v] for v in x])
+        class_map["fwd_dict"] = fwd
+        class_map["inv_dict"] = inv
     return class_map
 
 
@@ -242,8 +280,6 @@ def visualize_dataset(ds, n=8, v=True, name=None, to_numpy=False):
 """
 
 
-
-
 """
                                   _ 
    __ _  ___ _ __   ___ _ __ __ _| |
@@ -252,7 +288,6 @@ def visualize_dataset(ds, n=8, v=True, name=None, to_numpy=False):
   \__, |\___|_| |_|\___|_|  \__,_|_|
   |___/                             
 """
-
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -319,7 +354,7 @@ class Dataset(torch.utils.data.Dataset):
 
 
 class LitDataModule(pl.LightningDataModule):
-    """PyTorch Lightning DataModule for biomass weight + image dataset
+    """PyTorch Lightning DataModule for an arbitary dataset
 
     Args:
 
@@ -774,7 +809,7 @@ def choose_criterion(name):
 
 
 class Model(nn.Module):
-    """PyTorch module of the ResNet architecture, with the CNN and classification head separated"""
+    """PyTorch module for an arbitary timm model, separating the base and projection head"""
 
     def __init__(
         self,
@@ -816,7 +851,7 @@ class Model(nn.Module):
 
 
 class LitModule(pl.LightningModule):
-    """PyTorch Lightning module for training a RegressionResNet"""
+    """PyTorch Lightning module for training an arbitary model"""
 
     def __init__(
         self,
@@ -864,6 +899,10 @@ class LitModule(pl.LightningModule):
         else:
             self.is_classifier = False
 
+        self.training_step_outputs = []
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
+
     def predict_func(self, output):
         """Processes the output for prediction"""
         if self.is_classifier:
@@ -872,9 +911,11 @@ class LitModule(pl.LightningModule):
             return output.flatten()
 
     def forward(self, x):
+        """Forward pass"""
         return self.model(x)
 
     def configure_optimizers(self):
+        """Sets optimizers based on a dict passed as argument"""
         if self.opt_args["name"] == "adam":
             return torch.optim.Adam(self.model.parameters(), self.lr)
         elif self.opt_args["name"] == "adamw":
@@ -889,6 +930,7 @@ class LitModule(pl.LightningModule):
         return x, y, out, loss
 
     def common_epoch_end(self, outputs, name: str):
+        """Combination of outputs for calculating metrics"""
         y_true = torch.cat([x["y_true"] for x in outputs]).cpu().detach().numpy()
         y_pred = torch.cat([x["y_pred"] for x in outputs]).cpu().detach().numpy()
 
@@ -897,8 +939,6 @@ class LitModule(pl.LightningModule):
             y_pred = self.label_transform(y_pred)
 
         if self.is_classifier:
-            # y_true = y_true.astype(int)
-            # y_pred = y_pred.astype(int)
             self.log(f"{name}/acc", accuracy_score(y_true, y_pred))
             self.log(
                 f"{name}/f1",
@@ -910,33 +950,37 @@ class LitModule(pl.LightningModule):
     # Training
     def training_step(self, batch, batch_idx):
         _, y, out, loss = self.common_step(batch, batch_idx)
-        self.log("train/loss", loss)
-        return {"loss": loss, "y_true": y, "y_pred": self.predict_func(out)}
+        self.log("train/loss", loss, on_step=True, on_epoch=True)
+        outputs = {"loss": loss, "y_true": y, "y_pred": self.predict_func(out)}
+        self.training_step_outputs.append(outputs)
+        return loss
 
-    def training_epoch_end(self, outputs):
-        avg_train_loss = torch.mean(torch.stack([x["loss"] for x in outputs]))
-        self.log("train/loss_avg", avg_train_loss)
+    def on_train_epoch_end(self):
+        outputs = self.training_step_outputs
         _, _ = self.common_epoch_end(outputs, "train")
+        self.training_step_outputs.clear()
 
     # Validation
     def validation_step(self, batch, batch_idx):
         _, y, out, val_loss = self.common_step(batch, batch_idx)
+        self.log("val/loss", val_loss, on_step=True, on_epoch=True)
+        outputs = {"y_true": y, "y_pred": self.predict_func(out)}
+        self.validation_step_outputs.append(outputs)
 
-        self.log("val/loss", val_loss)
-        return {"y_true": y, "y_pred": self.predict_func(out)}
-
-    def validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self):
+        outputs = self.validation_step_outputs
         _, _ = self.common_epoch_end(outputs, "val")
+        self.validation_step_outputs.clear()
 
     # Testing
     def test_step(self, batch, batch_idx):
         _, y, out, test_loss = self.common_step(batch, batch_idx)
+        self.log("test/loss", test_loss, on_step=True, on_epoch=True)
+        outputs = {"y_true": y, "y_pred": self.predict_func(out), "out": out}
+        self.test_step_outputs.append(outputs)
 
-        self.log("test/loss", test_loss)
-        return {"y_true": y, "y_pred": self.predict_func(out), "out": out}
-
-    def test_epoch_end(self, outputs):
-        self.test_out = outputs
+    def on_test_epoch_end(self):
+        outputs = self.test_step_outputs
         if self.is_classifier:
             self.softmax = (
                 torch.cat([x["out"] for x in outputs])

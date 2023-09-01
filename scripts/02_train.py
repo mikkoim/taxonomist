@@ -1,20 +1,24 @@
 import argparse
-import os
 import uuid
 from datetime import datetime
 from pathlib import Path
 import yaml
 
 import taxonomist as src
-import pytorch_lightning as pl
-import torch
+import lightning.pytorch as pl
 import wandb
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks.early_stopping import EarlyStopping
+from lightning.pytorch.loggers import WandbLogger
+from lightning.pytorch.tuner import Tuner
+
+
+DESCRIPTION = """
+The main training script.
+"""
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
 
     parser = src.add_dataset_args(parser)
     parser = src.add_dataloader_args(parser)
@@ -24,10 +28,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    gpu_count = torch.cuda.device_count()
-
     # Run name parsing
-    basename = f"{args.out_prefix}_{args.model}_{args.criterion}_b{args.batch_size}"
+    basename = f"{args.out_prefix}_{args.model}"
     args.basename = basename
 
     if not args.ckpt_path:
@@ -49,8 +51,10 @@ if __name__ == "__main__":
     # Class / label map loading
     if args.class_map != "none":
         class_map = src.load_class_map(args.class_map)
+        n_classes = len(class_map["fwd_dict"])
     else:
-        class_map = {"fwd": None, "inv": None}
+        class_map = {"fwd": None, "inv": None, "fwd_dict": None, "inv_dict": None}
+        n_classes = 1
 
     if args.deterministic:
         pl.seed_everything(seed=args.global_seed)
@@ -77,7 +81,7 @@ if __name__ == "__main__":
         pretrained=args.pretrained,
         criterion=args.criterion,
         opt=opt_args,
-        n_classes=args.n_classes,
+        n_classes=n_classes,
         lr=args.lr,
         label_transform=class_map["inv"],
     )
@@ -118,10 +122,9 @@ if __name__ == "__main__":
         logger = True
 
     if args.smoke_test:
-        dm.setup()
-        limit_train_batches = (args.batch_size * 2) / len(dm.trainset)
-        limit_val_batches = (args.batch_size * 2) / len(dm.valset)
-        limit_test_batches = (args.batch_size * 2) / len(dm.testset)
+        limit_train_batches = 4
+        limit_val_batches = 4
+        limit_test_batches = 4
     else:
         limit_train_batches = 1.0
         limit_val_batches = 1.0
@@ -133,8 +136,8 @@ if __name__ == "__main__":
         min_epochs=args.min_epochs,
         logger=logger,
         log_every_n_steps=10,
-        auto_lr_find=args.auto_lr,
-        gpus=gpu_count,
+        devices="auto",
+        accelerator="auto",
         limit_train_batches=limit_train_batches,
         limit_val_batches=limit_val_batches,
         limit_test_batches=limit_test_batches,
@@ -144,7 +147,8 @@ if __name__ == "__main__":
     )
 
     if args.auto_lr:
-        trainer.tune(model, dm)
+        tuner = Tuner(trainer)
+        tuner.lr_find(model, dm)
         print(f"New lr: {model.hparams.lr}")
         wandb.config.update({"new_lr": model.hparams.lr}, allow_val_change=True)
 

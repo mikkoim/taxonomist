@@ -1,4 +1,17 @@
-"""
+import pandas as pd
+from pathlib import Path
+import numpy as np
+from omegaconf import OmegaConf
+from tqdm import tqdm
+import argparse
+from pprint import pprint
+from joblib import Parallel, delayed
+
+import sklearn.metrics
+
+DESCRIPTION = """
+Calculates metrics to prediction outputs.
+
 Input:
 A csv file containing true and predicted labels
 A config file containing metrics that are calculated
@@ -11,17 +24,6 @@ for
     full cv predictions
     each fold separately
 """
-
-import pandas as pd
-from pathlib import Path
-import numpy as np
-from omegaconf import OmegaConf
-from tqdm import tqdm
-import argparse
-from pprint import pprint
-from joblib import Parallel, delayed
-
-import sklearn.metrics
 
 
 def load_metric(metric):
@@ -57,17 +59,47 @@ def load_metric(metric):
         return logr2
 
     # Classification
+    elif metric == "accuracy":
+        return sklearn.metrics.accuracy_score
+
+    elif metric == "precision_macro":
+        return lambda y, yhat: sklearn.metrics.precision_score(
+            y, yhat, average="macro", zero_division=False
+        )
+    elif metric == "precision_micro":
+        return lambda y, yhat: sklearn.metrics.precision_score(
+            y, yhat, average="micro", zero_division=False
+        )
+    elif metric == "precision_weighted":
+        return lambda y, yhat: sklearn.metrics.precision_score(
+            y, yhat, average="weighted", zero_division=False
+        )
+
+    elif metric == "recall_macro":
+        return lambda y, yhat: sklearn.metrics.recall_score(
+            y, yhat, average="macro", zero_division=False
+        )
+    elif metric == "recall_micro":
+        return lambda y, yhat: sklearn.metrics.recall_score(
+            y, yhat, average="micro", zero_division=False
+        )
+    elif metric == "recall_weighted":
+        return lambda y, yhat: sklearn.metrics.recall_score(
+            y, yhat, average="weighted", zero_division=False
+        )
+
     elif metric == "f1_macro":
         return lambda y, yhat: sklearn.metrics.f1_score(
             y, yhat, average="macro", zero_division=False
         )
-
     elif metric == "f1_micro":
         return lambda y, yhat: sklearn.metrics.f1_score(
             y, yhat, average="micro", zero_division=False
         )
-    elif metric == "precision":
-        return sklearn.metrics.precision
+    elif metric == "f1_weighted":
+        return lambda y, yhat: sklearn.metrics.f1_score(
+            y, yhat, average="weighted", zero_division=False
+        )
 
 
 def calc_metrics(df):
@@ -103,7 +135,7 @@ def calc_bootstrap(df, n_repeats, alpha=0.95):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
 
     parser.add_argument("--predictions", type=str)
     parser.add_argument("--metric_config", type=str)

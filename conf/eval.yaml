@@ -1,0 +1,7 @@
+metrics:
+    - accuracy
+    - precision_macro
+    - precision_micro
+    - recall_macro
+    - recall_micro
+    - f1_weighted

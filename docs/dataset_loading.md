@@ -1,4 +1,9 @@
-This document describes steps for downloading datasets used in the experiments. The RODI dataset (de Schaetzen et al. 2023) is used as an example.
+This document describes steps for downloading datasets used in the experiments.
+
+## FIN-Benthic2 dataset
+Load the [dataset](https://etsin.fairdata.fi/dataset/a11cdc26-b9d0-4af1-9285-803d65a696a3).
+
+Extract the archive to `data/raw/finbenthic2`. Check that `finbenthic2` contains a single folder `IDA`, which contains the data.
 
 ## RODI dataset
 
