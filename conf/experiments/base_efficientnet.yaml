@@ -1,0 +1,35 @@
+models:
+  base-grouped:
+    predictions: outputs/finbenthic2/finbenthic2-base-200_efficientnet_b0/f1/predictions/geometric/_finbenthic2-base-200_efficientnet_b0_f1_230903-2143-d668_epoch07_val-loss0.18_geometric_grouped.csv
+    metrics: outputs/finbenthic2/finbenthic2-base-200_efficientnet_b0/f1/predictions/metrics/metrics__finbenthic2-base-200_efficientnet_b0_f1_230903-2143-d668_epoch07_val-loss0.18_geometric_grouped.csv
+    dataset: finbenthic2
+    length: grouped
+    tags:
+      grouped: True
+      tta: False
+      another_test_tag: True
+  base:
+    predictions: outputs/finbenthic2/finbenthic2-base-200_efficientnet_b0/f1/predictions/geometric/_finbenthic2-base-200_efficientnet_b0_f1_230903-2143-d668_epoch07_val-loss0.18_geometric.csv
+    metrics: outputs/finbenthic2/finbenthic2-base-200_efficientnet_b0/f1/predictions/metrics/metrics__finbenthic2-base-200_efficientnet_b0_f1_230903-2143-d668_epoch07_val-loss0.18_geometric.csv
+    dataset: finbenthic2
+    length: separate
+    tags: 
+      grouped: False
+      tta: False
+  tta:
+    predictions: outputs/finbenthic2/finbenthic2-base-200_efficientnet_b0/f1/predictions/geometric_tta/_finbenthic2-base-200_efficientnet_b0_f1_230903-2143-d668_epoch07_val-loss0.18_geometric_tta.csv
+    metrics: outputs/finbenthic2/finbenthic2-base-200_efficientnet_b0/f1/predictions/metrics/metrics__finbenthic2-base-200_efficientnet_b0_f1_230903-2143-d668_epoch07_val-loss0.18_geometric_tta.csv
+    dataset: finbenthic2
+    length: separate
+    tags:
+      grouped: False
+      tta: True
+      test_tag: 'test'
+  tta-grouped:
+    predictions: outputs/finbenthic2/finbenthic2-base-200_efficientnet_b0/f1/predictions/geometric_tta/_finbenthic2-base-200_efficientnet_b0_f1_230903-2143-d668_epoch07_val-loss0.18_geometric_tta_grouped.csv
+    metrics: outputs/finbenthic2/finbenthic2-base-200_efficientnet_b0/f1/predictions/metrics/metrics__finbenthic2-base-200_efficientnet_b0_f1_230903-2143-d668_epoch07_val-loss0.18_geometric_tta_grouped.csv
+    dataset: finbenthic2
+    length: grouped
+    tags:
+      grouped: True
+      tta: True

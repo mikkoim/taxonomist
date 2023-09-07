@@ -63,6 +63,7 @@ python scripts/02_train.py \
 ```
 
 ## 6. Prediction
+Change the `ckpt_path` to the model in your outputs folder
 
 ```bash
 python scripts/03_predict.py \
@@ -83,6 +84,7 @@ python scripts/03_predict.py \
 ```
 
 ### 6.1 Prediction processing
+Change the `predictions` to the predictions in your folder 
 ```bash
 python scripts/04_group_predictions.py \
     --predictions "outputs/finbenthic2/finbenthic2_resnet18_cross-entropy_b8/f0/predictions/none/finbenthic2_finbenthic2_resnet18_cross-entropy_b8_f0_230831-2233-7ee4_epoch02_val-loss3.57_none.csv" \
@@ -99,4 +101,12 @@ python scripts/04_group_predictions.py \
 python scripts/05_evaluate.py \
     --predictions "outputs/finbenthic2/finbenthic2_resnet18_cross-entropy_b8/f0/predictions/none/finbenthic2_finbenthic2_resnet18_cross-entropy_b8_f0_230831-2233-7ee4_epoch02_val-loss3.57_none_grouped.csv" \
     --metric_config conf/eval.yaml
+```
+
+## 8. Comparison
+
+```bash
+python scripts/06_compare.py \
+        --config 'conf/experiments/base_efficientnet.yaml' \
+        --out_folder 'results'
 ```

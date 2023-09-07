@@ -7,7 +7,8 @@ import yaml
 import taxonomist as src
 import lightning.pytorch as pl
 import wandb
-from lightning.pytorch.callbacks import ModelCheckpoint
+import torch
+from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.tuner import Tuner
@@ -32,9 +33,11 @@ if __name__ == "__main__":
     basename = f"{args.out_prefix}_{args.model}"
     args.basename = basename
 
-    if not args.ckpt_path:
+    if not args.resume:
         uid = datetime.now().strftime("%y%m%d-%H%M") + f"-{str(uuid.uuid4())[:4]}"
     else:
+        if not args.ckpt_path:
+            raise ValueError("When resuming, a ckpt_path must be set")
         # Parse the uid from filename
         print(f"Using checkpoint from {args.ckpt_path}")
         ckpt_name = Path(args.ckpt_path).stem
@@ -86,14 +89,36 @@ if __name__ == "__main__":
         label_transform=class_map["inv"],
     )
 
+    # If using pretrained weights but not resuming a run
+    if (not args.resume) and args.ckpt_path:
+        ckpt = torch.load(
+            args.ckpt_path,
+            map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        )
+        model.load_state_dict(ckpt["state_dict"])
+        resume_ckpt = None
+
+    # If resuming a run
+    else:
+        resume_ckpt = args.ckpt_path
+
     # Training callbacks
-    checkpoint_callback = ModelCheckpoint(
+    checkpoint_callback_best = ModelCheckpoint(
         monitor="val/loss",
         dirpath=out_folder,
         filename=f"{outname}_" + "epoch{epoch:02d}_val-loss{val/loss:.2f}",
         auto_insert_metric_name=False,
     )
-    callbacks = [checkpoint_callback]
+    checkpoint_callback_last = ModelCheckpoint(
+        monitor="epoch",
+        mode="max",
+        dirpath=out_folder,
+        filename=f"{outname}_" + "epoch{epoch:02d}_val-loss{val/loss:.2f}_last",
+        auto_insert_metric_name=False,
+    )
+
+    lr_monitor = LearningRateMonitor(logging_interval="step")
+    callbacks = [checkpoint_callback_best, checkpoint_callback_last, lr_monitor]
 
     if args.early_stopping:
         callbacks.append(
@@ -101,7 +126,7 @@ if __name__ == "__main__":
         )
 
     if not args.debug:
-        wandb_resume = True if args.ckpt_path else None
+        wandb_resume = True if args.resume else None
         print(wandb_resume)
         logger = WandbLogger(
             project=args.log_dir,
@@ -156,11 +181,11 @@ if __name__ == "__main__":
         with open(out_folder / f"config_{uid}.yml", "w") as f:
             f.write(yaml.dump(vars(wandb.config)["_items"]))
 
-    trainer.fit(model, dm, ckpt_path=args.ckpt_path)
+    trainer.fit(model, dm, ckpt_path=resume_ckpt)
     trainer.test(model, datamodule=dm, ckpt_path="best")
 
     dm.visualize_datasets(out_folder / f"aug-{args.aug}-{uid}")
 
     print(
-        f"Best model: {checkpoint_callback.best_model_path} | score: {checkpoint_callback.best_model_score}"
+        f"Best model: {checkpoint_callback_best.best_model_path} | score: {checkpoint_callback_best.best_model_score}"
     )

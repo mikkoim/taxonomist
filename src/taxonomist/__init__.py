@@ -9,6 +9,7 @@ import albumentations as A
 import numpy as np
 import PIL.Image as Image
 import lightning.pytorch as pl
+import pandas as pd
 import scipy.stats
 import timm
 import torch
@@ -131,6 +132,14 @@ def add_train_args(parser: argparse.ArgumentParser):
     parser.add_argument("--precision", type=int, default=32)
     parser.add_argument(
         "--deterministic",
+        type=lambda x: bool(strtobool(x)),
+        nargs="?",
+        const=True,
+        default=False,
+    )
+    parser.add_argument(
+        "--resume",
+        help="Whether to resume a training run or to start a new",
         type=lambda x: bool(strtobool(x)),
         nargs="?",
         const=True,
@@ -512,7 +521,11 @@ class LitDataModule(pl.LightningDataModule):
 
     def tta_process(self, y):
         A = y.reshape(self.tta_n, len(self.testset))
-        return scipy.stats.mode(A, axis=0)[0].squeeze()
+        return pd.DataFrame(A).T.mode(axis=1).iloc[:, 0].values
+
+    def tta_process_softmax(self, softmax):
+        A = softmax.T.reshape(softmax.shape[1], self.tta_n, len(self.testset))
+        return A.mean(axis=1).T
 
     def visualize_datasets(self, folder):
         _now = datetime.now().strftime("%H%M%S")

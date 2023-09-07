@@ -19,6 +19,11 @@ def preprocess_dataset(data_folder, dataset_name, csv_path=None, fold=None, labe
                 data_folder, csv_path, set_, fold, label
             )
 
+        elif dataset_name == "finbenthic1":
+            fnames[set_], labels[set_] = process_split_csv_finbenthic1(
+                data_folder, csv_path, set_, fold, label
+            )
+
         elif dataset_name == "my_dataset":
             """
 
@@ -29,6 +34,23 @@ def preprocess_dataset(data_folder, dataset_name, csv_path=None, fold=None, labe
 
         else:
             raise Exception("Unknown dataset name")
+
+    return fnames, labels
+
+
+def process_split_csv_finbenthic1(data_folder, csv_path, set_, fold, label):
+    df0 = pd.read_csv(csv_path)
+    df = df0[df0[str(fold)] == set_]
+
+    fnames = df.apply(
+        lambda x: Path(data_folder, "Cropped images", x["taxon"], x["img"]).resolve(),
+        axis=1,
+    ).values
+
+    for fname in fnames:
+        assert fname.exists()
+
+    labels = df[label].values
 
     return fnames, labels
 

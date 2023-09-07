@@ -60,7 +60,10 @@ if __name__ == "__main__":
     model.freeze()
 
     trainer = pl.Trainer(
-        devices="auto", accelerator="auto", fast_dev_run=args.smoke_test, logger=False
+        devices="auto",
+        accelerator="auto",
+        fast_dev_run=2 if args.smoke_test else False,
+        logger=False,
     )
 
     if not args.tta:
@@ -68,6 +71,7 @@ if __name__ == "__main__":
         y_true, y_pred = model.y_true, model.y_pred
 
     else:
+        dm.setup()
         trainer.test(model, dataloaders=dm.tta_dataloader())
         y_true = dm.tta_process(model.y_true)
         y_pred = dm.tta_process(model.y_pred)
@@ -78,6 +82,9 @@ if __name__ == "__main__":
 
     if n_classes > 1:
         softmax = model.softmax
+
+        if args.tta:
+            softmax = dm.tta_process_softmax(softmax)
         n_classes = softmax.shape[1]
         classes = class_map["inv"](list(range(n_classes)))
         df_prob = pd.DataFrame(data=softmax, columns=classes)

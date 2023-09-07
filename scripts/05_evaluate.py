@@ -143,6 +143,7 @@ if __name__ == "__main__":
     parser.add_argument("--reference_csv", default=None, type=str)
     parser.add_argument("--reference_target", default=None, type=str)
     parser.add_argument("--n_folds", type=int, default=5)
+    parser.add_argument("--no_bootstrap", action="store_true")
     parser.add_argument("--n_bootstrap", default=1000)
     parser.add_argument("--bootstrap_alpha", default=0.95)
     parser.add_argument("--no_save", action="store_true")
@@ -160,7 +161,13 @@ if __name__ == "__main__":
     # Load predictions and calculate metrics
     df = pd.read_csv(csv_path)
     values = calc_metrics(df)
-    bs_errors, bs_values = calc_bootstrap(df, args.n_bootstrap, args.bootstrap_alpha)
+    if not args.no_bootstrap:
+        bs_errors, bs_values = calc_bootstrap(
+            df, args.n_bootstrap, args.bootstrap_alpha
+        )
+    else:
+        bs_errors = None
+        bs_values = None
 
     pprint(values)
 
@@ -171,10 +178,11 @@ if __name__ == "__main__":
         row["fold"] = "full"
         row["metric"] = metric
         row["value"] = values[metric]
-        row["q_l"] = bs_errors[metric][0]
-        row["q_u"] = bs_errors[metric][1]
-        assert row["q_l"] <= row["value"]
-        assert row["value"] <= row["q_u"]
+        if not args.no_bootstrap:
+            row["q_l"] = bs_errors[metric][0]
+            row["q_u"] = bs_errors[metric][1]
+            assert row["q_l"] <= row["value"]
+            assert row["value"] <= row["q_u"]
         row_list.append(row)
     results = pd.DataFrame(row_list)
 
@@ -190,18 +198,20 @@ if __name__ == "__main__":
             df_fold = df.iloc[idx]
 
             values = calc_metrics(df_fold)
-            bs_errors, _ = calc_bootstrap(
-                df_fold, args.n_bootstrap, args.bootstrap_alpha
-            )
+            if not args.no_bootstrap:
+                bs_errors, _ = calc_bootstrap(
+                    df_fold, args.n_bootstrap, args.bootstrap_alpha
+                )
             for metric in conf.metrics:
                 row = {}
                 row["fold"] = str(fold)
                 row["metric"] = metric
                 row["value"] = values[metric]
-                row["q_l"] = bs_errors[metric][0]
-                row["q_u"] = bs_errors[metric][1]
-                assert row["q_l"] <= row["value"]
-                assert row["value"] <= row["q_u"]
+                if not args.no_bootstrap:
+                    row["q_l"] = bs_errors[metric][0]
+                    row["q_u"] = bs_errors[metric][1]
+                    assert row["q_l"] <= row["value"]
+                    assert row["value"] <= row["q_u"]
                 row_list.append(row)
 
         results_cv = pd.DataFrame(row_list)
@@ -210,8 +220,9 @@ if __name__ == "__main__":
     if args.around:
         print(f"Rounding values to {args.around} decimals")
         results["value"] = results["value"].apply(lambda x: np.around(x, args.around))
-        results["q_l"] = results["q_l"].apply(lambda x: np.around(x, args.around))
-        results["q_u"] = results["q_u"].apply(lambda x: np.around(x, args.around))
+        if not args.no_bootstrap:
+            results["q_l"] = results["q_l"].apply(lambda x: np.around(x, args.around))
+            results["q_u"] = results["q_u"].apply(lambda x: np.around(x, args.around))
 
     if not args.no_save:
         csv_stem = csv_path.stem

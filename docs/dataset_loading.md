@@ -1,4 +1,7 @@
 This document describes steps for downloading datasets used in the experiments.
+## FIN-Benthic1 dataset
+
+Load the [dataset](https://etsin.fairdata.fi/dataset/b6faa81a-0d91-4fbd-b010-4ebf3f3da714)
 
 ## FIN-Benthic2 dataset
 Load the [dataset](https://etsin.fairdata.fi/dataset/a11cdc26-b9d0-4af1-9285-803d65a696a3).

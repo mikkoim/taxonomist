@@ -1,7 +1,6 @@
 import argparse
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 from omegaconf import OmegaConf
 from collections import defaultdict
@@ -11,96 +10,38 @@ Combines evaluation results for several models
 
 Input:
     yaml file containing results to be compared in the structure. User input <inside brackets>:
-    
+
     models:
-        <model_path01>:
-            versions:
-                <version01>:
-                    short_name: <short name for this model and version>
-                    version_tag: <tag for this version separating it from 
-                                different length versions, for example after grouping, etc>
-                    dataset: <dataset used for calculating results, (not necessarily same as
-                                for training the model)>
-                <version02>:
-                    ...
-        <model_path02>:
-            ...
-    metrics:
-        <metric01>:
-            minimize: <boolean whether smaller is better for this metric>
-        <metric02>:
-            ...
+        <model-1-name>:
+            predictions: <path to model-1 predictions>
+            metrics: <path to model-1 metrics>
+            dataset: <The dataset that was used for testing (NOT training).
+                        Used to differentiate different lenght outputs>
+            length: <a length tag that differentiates different length outputs.
+                     for example: "grouped" or "separate">
+            tags:
+                <tag-1>: <Tags are arbitary and can have arbitary values>
+                <tag-2>: <tag 2 value>
+        <model-2-name>:
+            predictions:
+            metrics:
+            dataset:
+            length:
                     
 Output:
-    prints the best performing models
+    Creates two sub-folders to out_folder: predictions and metrics. Predictions are grouped together
+    by dataset-length pairs
 """
-
-
-def print_top_scores(df):
-    def print_top(d):
-        dd = pd.DataFrame.from_dict(d, orient="index").T.fillna("-")
-        col_order = dd.apply(lambda x: np.sum(x != "-")).sort_values(ascending=False)
-        print(dd.loc[:, col_order.index].to_markdown(index=False))
-
-    d = defaultdict(list)
-    d_ci = defaultdict(list)
-
-    print("## Models ordered on a metric, within the CI of the best model")
-    for metric in sorted(conf.metrics.keys()):
-        ascending = conf.metrics[metric].minimize
-        if ascending:
-
-            def comp(x, y):
-                return x < y
-
-            q_limit = "q_u"
-        else:
-
-            def comp(x, y):
-                return x > y
-
-            q_limit = "q_l"
-
-        df_sort = df.query("metric==@metric").sort_values(
-            by="value", ascending=ascending
-        )
-
-        within_ci = df_sort[comp(df_sort["value"], df_sort.iloc[0][q_limit])]
-        print(metric)
-        print(
-            within_ci[["name", "value", "version", "q_l", "q_u"]].to_markdown(
-                index=False
-            )
-        )
-        print()
-
-        d[df_sort.iloc[0]["name"]].append(metric)
-        for n in within_ci.name:
-            d_ci[n].append(metric)
-
-    print()
-    print("## Overview")
-    print_top(d_ci)
-    print()
-
-    print("## Only the best models")
-    print_top(d)
-
-    return d, d_ci
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=DESCRIPTION)
 
-    parser.add_argument("--root_dir", type=str)
     parser.add_argument("--config", type=str)
     parser.add_argument("--out_folder", type=str, default=None)
     parser.add_argument("--print_config", action="store_true")
     parser.add_argument("--print_versions", action="store_true")
 
     args = parser.parse_args()
-
-    folder = Path(args.root_dir)
 
     if args.out_folder:
         out_folder = Path(args.out_folder)
@@ -114,53 +55,52 @@ if __name__ == "__main__":
     if args.print_config:
         print(OmegaConf.to_yaml(conf))
 
-    # Go through models in conf
+    # Create tags
+    tag_set = set()
+    for model, model_conf in conf.models.items():
+        for tag in model_conf["tags"].keys():
+            tag_set.add(tag)
+
+    # Read metrics and predictions
     dfs = []
     dfs_pred = defaultdict(lambda: defaultdict(list))
-    versions = set()
-    version_tags = set()
-    for model in conf.models.keys():
-        metric_folder = folder / model / "metrics"
-        pred_folder = folder / model / "predictions"
+    length_tags = set()
+    for model, model_conf in conf.models.items():
+        dataset = model_conf["dataset"]
+        length = model_conf["length"]
 
-        # Go through different prediction versions
-        for version in conf.models[model].versions.keys():
-            vdict = conf.models[model].versions[version]
-            name = vdict["short_name"]
-            version_tag = vdict["version_tag"]
-            dataset = vdict["dataset"]
+        # Read metrics
+        df_metrics = pd.read_csv(model_conf["metrics"])
+        df_metrics["name"] = model
+        df_metrics["dataset"] = dataset
+        df_metrics["length"] = length
+        for tag, value in model_conf["tags"].items():
+            df_metrics[tag] = value
+        dfs.append(df_metrics)
 
-            # Read metrics
-            df0 = pd.read_csv(
-                metric_folder / f"metrics_{Path(model).name}_{version}.csv"
-            )
-            df0["version"] = version
-            df0["name"] = name
-            df0["version_tag"] = version_tag
-            df0["dataset"] = dataset
-            dfs.append(df0)
-
-            # Read predictions
-            df_pred = pd.read_csv(pred_folder / f"{Path(model).name}_{version}.csv")
-            df_pred = df_pred.rename({"y_pred": name}, axis=1)
-            dfs_pred[dataset][version_tag].append(df_pred)
-
-            versions.add(version)
-            version_tags.add(version_tag)
+        # Read predictions
+        df_pred = pd.read_csv(model_conf["predictions"])[["y_true", "y_pred"]]
+        df_pred = df_pred.rename({"y_pred": model}, axis=1)
+        # Different lengths of datasets and predictions (for example groupings)
+        # are taken care of with dataset and length tags
+        dfs_pred[dataset][length].append(df_pred)
+        length_tags.add(length)
 
     # combine predictions to a single dataframe
-    for dataset in dfs_pred.keys():
-        for version_tag in version_tags:
-            if len(dfs_pred[dataset][version_tag]) != 0:
-                df_ds_v = pd.concat(dfs_pred[dataset][version_tag], axis=1)
-                df_ds_v = df_ds_v.loc[:, ~df_ds_v.columns.duplicated()].copy()
+    for dataset, ds_preds in dfs_pred.items():
+        for length in length_tags:
+            if len(ds_preds[length]) != 0:
+                df_ds_l = pd.concat(dfs_pred[dataset][length], axis=1)
+
+                # Remove duplicate columns
+                df_ds_l = df_ds_l.loc[:, ~df_ds_l.columns.duplicated()].copy()
 
                 # Save preds
                 if args.out_folder:
                     out_fname = out_pred / (
-                        Path(args.config).stem + f"_{dataset}_{version_tag}.csv"
+                        Path(args.config).stem + f"_{dataset}_{length}.csv"
                     )
-                    df_ds_v.to_csv(out_fname, index=False)
+                    df_ds_l.to_csv(out_fname, index=False)
                     print(out_fname)
 
     # Save combined evaluation dataframes
@@ -168,22 +108,9 @@ if __name__ == "__main__":
     if args.out_folder:
         out_fname = out_metr / (Path(args.config).stem + ".csv")
         df.to_csv(out_fname, index=False)
-        print(out_fname)
 
-    # Print comparison of models
-    df_full = df.query("fold=='full'")
+    df_full = df.query("fold =='full'")
     df_full_pivot = df_full.pivot(
-        values="value", index=["dataset", "version_tag", "name"], columns="metric"
+        values="value", index=["dataset", "length", "name"], columns="metric"
     )
     print(df_full_pivot.to_string())
-
-    print("\nPrinting results for all models")
-    d = print_top_scores(df_full)
-    print("\n")
-
-    if args.print_versions:
-        print("Printing results for each version tag separately:")
-        for version_tag in df_full["version_tag"].unique():
-            df_tmp = df_full.query("version_tag==@version_tag")
-            print(f"\n##### VERSION TAG: {version_tag}")
-            d_tmp = print_top_scores(df_tmp)

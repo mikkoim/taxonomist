@@ -39,16 +39,16 @@ if __name__ == "__main__":
             )
         ref_df = ref_df[ref_df[str(args.fold)] == args.set].reset_index(drop=True)
 
-    else:
-        ref_a = ref_df[args.reference_target]
-        ref_b = df.y_true
-        try:
-            if not np.allclose(ref_a, ref_b):
-                raise ValueError("Reference column does not match ground truth.")
+    # Check that reference matches
+    ref_a = ref_df[args.reference_target]
+    ref_b = df.y_true
+    try:
+        if not np.allclose(ref_a, ref_b):
+            raise ValueError("Reference column does not match ground truth.")
 
-        except TypeError:  # categorical variable
-            if not ref_a == ref_b:
-                raise ValueError("Reference column does not match ground truth.")
+    except TypeError:  # categorical variable
+        if not (ref_a == ref_b).all():
+            raise ValueError("Reference column does not match ground truth.")
 
     # Combine predictions and reference
     comb_df = pd.concat((df, ref_df), axis=1)
