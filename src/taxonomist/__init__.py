@@ -37,28 +37,30 @@ def add_dataset_args(parser: argparse.ArgumentParser):
         type=str,
         help="The dataset name that is used to select the function that "
         "determines how data should be loaded",
-        default="imagefolder",
+        required=True,
     )
     parser.add_argument(
         "--csv_path",
         type=str,
-        help="Path to the csv file that contains label information for each sample. "
-        "Used along data_folder to produce final filenames for training."
+        help="Path to the csv file that contains dataset table and label "
+        "information for each sample. "
+        "Used along data_folder to produce final filenames for training. "
         "The csv should contain train-test-validation split info for all "
         "cross-validation folds",
-        default=None,
-    )
-    parser.add_argument(
-        "--fold",
-        type=int,
-        help="The fold that is used for training. Found from the csv_path file.",
-        default=None,
+        required=True,
     )
     parser.add_argument(
         "--label",
         type=str,
         help="Label column. Found from the csv_path file.",
         default=None,
+        required=False,
+    )
+    parser.add_argument(
+        "--fold",
+        type=int,
+        help="The fold that is used for training. Found from the csv_path file.",
+        required=True,
     )
     parser.add_argument(
         "--class_map",
@@ -67,36 +69,63 @@ def add_dataset_args(parser: argparse.ArgumentParser):
         "an unambiguous reference between strings and indices, even if some folds "
         "don't contain all classes",
         default=None,
+        required=False,
     )
     return parser
 
 
 def add_dataloader_args(parser: argparse.ArgumentParser):
-    parser.add_argument("--imsize", type=int, help="Inputs are resized to this size")
-    parser.add_argument("--batch_size", type=int)
-    parser.add_argument("--aug", type=str, default="only-flips")
+    parser.add_argument(
+        "--imsize", type=int, help="Inputs are resized to this size", default=None
+    )
+    parser.add_argument("--batch_size", type=int, help="Batch size", default=None)
+    parser.add_argument(
+        "--aug",
+        type=str,
+        help="The augmentation method to be used",
+        default="only-flips",
+    )
     parser.add_argument(
         "--load_to_memory",
         type=lambda x: bool(strtobool(x)),
         nargs="?",
         const=True,
+        help="Whether the full dataset is loaded to memory. Might be faster for "
+        "systems with slow disks.",
         default=False,
     )
     parser.add_argument(
-        "--tta", type=lambda x: bool(strtobool(x)), nargs="?", const=True, default=False
+        "--tta",
+        type=lambda x: bool(strtobool(x)),
+        nargs="?",
+        const=True,
+        help="Test-time augmentation is applied",
+        default=False,
     )
     return parser
 
 
 def add_model_args(parser: argparse.ArgumentParser):
-    parser.add_argument("--model", type=str)
-    parser.add_argument("--criterion", type=str)
-    parser.add_argument("--ckpt_path", type=str, default=None)
+    parser.add_argument(
+        "--model", type=str, help="The model name from the timm library"
+    )
+    parser.add_argument("--criterion", type=str, help="The loss function")
+    parser.add_argument(
+        "--ckpt_path",
+        type=str,
+        help="Optional path for a checkpoint. If this is "
+        "specified with resume=True, logging will continue for that run. "
+        "With resume=False the weights are loaded from this checkpoint "
+        "and a new model is trained.",
+        default=None,
+        required=False,
+    )
     parser.add_argument(
         "--freeze_base",
         type=lambda x: bool(strtobool(x)),
         nargs="?",
         const=True,
+        help="Whether the convolutional layers are frozen (not trained)",
         default=False,
     )
     parser.add_argument(
@@ -104,7 +133,29 @@ def add_model_args(parser: argparse.ArgumentParser):
         type=lambda x: bool(strtobool(x)),
         nargs="?",
         const=True,
+        help="If True, the pretrained weights from timm are used. Usually ImageNet",
         default=True,
+    )
+    parser.add_argument(
+        "--inverse_class_map",
+        help="'none', if no inverse mapping should be done, 'same', if the "
+        "inverse of the label map provided with the dataset is used",
+        type=str,
+        default="same",
+    )
+    parser.add_argument(
+        "--feature_extraction",
+        help="If set, only features will be extracted in the prediction script",
+        type=str,
+        default=None,
+    )
+    parser.add_argument(
+        "--return_logits",
+        type=lambda x: bool(strtobool(x)),
+        nargs="?",
+        const=True,
+        help="returns logits instead of softmax output in the prediction script",
+        default=False,
     )
     return parser
 
@@ -129,7 +180,7 @@ def add_train_args(parser: argparse.ArgumentParser):
         const=True,
         default=False,
     )
-    parser.add_argument("--precision", type=int, default=32)
+    parser.add_argument("--precision", default=32)
     parser.add_argument(
         "--deterministic",
         type=lambda x: bool(strtobool(x)),
@@ -305,7 +356,6 @@ class Dataset(torch.utils.data.Dataset):
     Args:
         filenames: list of filepaths
         y: list of targets
-        imsize: image is resized to this size
         preload_transform: transform to apply to the PIL image after loading and before
                             loading into memory
         transform: transform to apply to the image after loading
@@ -316,14 +366,12 @@ class Dataset(torch.utils.data.Dataset):
         self,
         filenames: list,
         y: list,
-        imsize,
         preload_transform=None,
         transform=None,
         load_to_memory=True,
     ):
         self.filenames = filenames
         self.y = y
-        self.imsize = imsize
         self.preload_transform = preload_transform
         self.transform = transform
         self.mem_dataset = None
@@ -410,7 +458,6 @@ class LitDataModule(pl.LightningDataModule):
 
         self.aug = aug
         self.batch_size = batch_size
-        self.imsize = imsize
 
         self.label_transform = label_transform
         self.load_to_memory = load_to_memory
@@ -441,7 +488,6 @@ class LitDataModule(pl.LightningDataModule):
         self.trainset = Dataset(
             fnames["train"],
             labels["train"],
-            self.imsize,
             preload_transform=None,
             transform=self.tf_train,
             load_to_memory=self.load_to_memory,
@@ -450,7 +496,6 @@ class LitDataModule(pl.LightningDataModule):
         self.valset = Dataset(
             fnames["val"],
             labels["val"],
-            self.imsize,
             preload_transform=None,
             transform=self.tf_test,
             load_to_memory=self.load_to_memory,
@@ -459,7 +504,6 @@ class LitDataModule(pl.LightningDataModule):
         self.testset = Dataset(
             fnames["test"],
             labels["test"],
-            self.imsize,
             preload_transform=None,
             transform=self.tf_test,
             load_to_memory=self.load_to_memory,
@@ -469,7 +513,6 @@ class LitDataModule(pl.LightningDataModule):
             Dataset(
                 fnames["test"],
                 labels["test"],
-                self.imsize,
                 preload_transform=None,
                 transform=self.tf_train,
                 load_to_memory=self.load_to_memory,
@@ -523,8 +566,8 @@ class LitDataModule(pl.LightningDataModule):
         A = y.reshape(self.tta_n, len(self.testset))
         return pd.DataFrame(A).T.mode(axis=1).iloc[:, 0].values
 
-    def tta_process_softmax(self, softmax):
-        A = softmax.T.reshape(softmax.shape[1], self.tta_n, len(self.testset))
+    def tta_process_output(self, output):
+        A = output.T.reshape(output.shape[1], self.tta_n, len(self.testset))
         return A.mean(axis=1).T
 
     def visualize_datasets(self, folder):
@@ -842,7 +885,9 @@ class Model(nn.Module):
         super().__init__()
 
         self.h_dim = (
-            timm.create_model(model, pretrained=False).get_classifier().in_features
+            timm.create_model(model, pretrained=False, num_classes=1)
+            .get_classifier()
+            .in_features
         )
         self.base_model = timm.create_model(model, num_classes=0, pretrained=pretrained)
 
@@ -995,11 +1040,70 @@ class LitModule(pl.LightningModule):
     def on_test_epoch_end(self):
         outputs = self.test_step_outputs
         if self.is_classifier:
-            self.softmax = (
-                torch.cat([x["out"] for x in outputs])
-                .softmax(dim=1)
-                .cpu()
-                .detach()
-                .numpy()
-            )
+            logits = torch.cat([x["out"] for x in outputs])
+            self.softmax = logits.softmax(dim=1).cpu().detach().numpy()
+            self.logits = logits.cpu().detach().numpy()
+
         self.y_true, self.y_pred = self.common_epoch_end(outputs, "test")
+
+
+class FeatureExtractionModule(pl.LightningModule):
+    def __init__(
+        self,
+        feature_extraction_mode: str,
+        model: str,
+        freeze_base: bool = False,
+        pretrained: bool = True,
+        n_classes: int = 0,
+        criterion: str = "cross-entropy",
+        opt: dict = {"name": "adam"},
+        lr: float = 1e-4,
+        label_transform=None,
+    ):
+        """
+        The feature exctraction module implements the same interface as the basic LitModule
+        for passing LitModule parameters.
+        """
+        super().__init__()
+        self.save_hyperparameters(ignore=["label_transform"])
+        self.example_input_array = torch.randn((1, 3, 224, 224))
+
+        self.feature_extraction_mode = feature_extraction_mode
+        self.model = Model(
+            model=model,
+            freeze_base=freeze_base,
+            pretrained=pretrained,
+            n_classes=n_classes,
+        )
+        self.lr = lr
+        self.label_transform = label_transform
+        self.criterion = choose_criterion(criterion)
+        self.opt_args = opt
+
+        self.training_step_outputs = []
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
+
+    def forward(self, x):
+        if self.feature_extraction_mode == "unpooled":
+            return self.model.base_model.forward_features(x)
+        elif self.feature_extraction_mode == "pooled":
+            return self.model.base_forward(x)
+        else:
+            raise Exception(
+                f"Invalid feature extraction mode {self.feature_extraction_mode}"
+            )
+
+    def test_step(self, batch, batch_idx):
+        bx, by = batch
+        out = self.forward(bx)
+        outputs = {
+            "y_true": by.cpu().detach().numpy(),
+            "out": out.cpu().detach().numpy(),
+        }
+        self.test_step_outputs.append(outputs)
+
+    def on_test_epoch_end(self):
+        outputs = self.test_step_outputs
+        self.y_true = [x["y_true"] for x in outputs]
+        self.y_pred = [x["out"] for x in outputs]

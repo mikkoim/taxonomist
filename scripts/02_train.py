@@ -137,6 +137,7 @@ if __name__ == "__main__":
         )
 
         logger.watch(model)
+        wandb.init()
         wandb.config.update(args, allow_val_change=True)
         # logger = TensorBoardLogger(args.log_dir,
         #                            name=basename,

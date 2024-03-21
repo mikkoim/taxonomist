@@ -12,9 +12,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=DESCRIPTION)
 
     parser.add_argument("--model_folder", type=str)
-    parser.add_argument("--tag", type=str)
+    parser.add_argument("--tag", help="The augmentation/dataset identifier", type=str)
     parser.add_argument("--reference_csv", type=str, required=False)
     parser.add_argument("--reference_target", type=str)
+    parser.add_argument(
+        "--suffix",
+        help="file suffix that identifies the csv files to be grouped",
+        type=str,
+        default=".csv",
+    )
     parser.add_argument("--n_folds", type=int, default=5)
     parser.add_argument("--start_fold", type=int, default=0)
     parser.add_argument("--around", type=int)
@@ -32,7 +38,12 @@ if __name__ == "__main__":
     idx_list = []
     for fold in range(args.start_fold, args.start_fold + args.n_folds):
         pred_folder = model_folder / f"f{fold}" / "predictions" / f"{args.tag}"
-        f = next(pred_folder.glob("*.csv"))
+        csvs_in_folder = list(pred_folder.glob(f"*{args.suffix}"))
+        if len(csvs_in_folder) != 1:
+            raise ValueError(
+                f"The number of files that match the suffix is {len(csvs_in_folder)}. Ensure the suffix uniquely identifies the files to be combined"
+            )
+        f = csvs_in_folder[0]
         df_fold = pd.read_csv(f)
         csv_list.append(df_fold)
 

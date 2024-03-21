@@ -4,7 +4,6 @@ The RODI dataset is already cleaned so this script exists only for demonstration
 Normally you would perform all data cleaning and combining in this script
 """
 
-
 from pathlib import Path
 import pandas as pd
 import argparse

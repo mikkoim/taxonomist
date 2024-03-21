@@ -63,6 +63,13 @@ if __name__ == "__main__":
         default=1,
     )
 
+    parser.add_argument(
+        "--random_state",
+        type=int,
+        help="The random seed for the split. Default is 42",
+        default=42
+    )
+
     parser.add_argument("--out_folder", type=str, default=".")
 
     args = parser.parse_args()
@@ -75,7 +82,7 @@ if __name__ == "__main__":
 
     # Splits
     try:
-        cv = StratifiedGroupKFold(n_splits=args.n_splits, shuffle=True, random_state=42)
+        cv = StratifiedGroupKFold(n_splits=args.n_splits, shuffle=True, random_state=args.random_state)
 
         # Try to calculate the splits for exception catchment
         next(iter(cv.split(df, df[args.target_col], df[args.group_col])))
