@@ -5,6 +5,7 @@ import lightning.pytorch as pl
 import taxonomist as src
 import torch
 from pathlib import Path
+import pickle
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -19,18 +20,31 @@ if __name__ == "__main__":
 
     gpu_count = torch.cuda.device_count()
 
-    tag = f"{args.aug}"
+    tag = f"{args.dataset_name}_{args.aug}"
     if args.tta:
         tag += "_tta"
-    out_folder = Path(args.ckpt_path).parents[0] / "predictions" / tag
+
+    folder_type = "features" if args.feature_extraction else "predictions"
+
+    if args.ckpt_path:
+        model_stem = Path(args.ckpt_path).stem
+        ckpt = torch.load(
+            args.ckpt_path,
+            map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        )
+        out_folder = Path(args.ckpt_path).parents[0] / folder_type / tag
+    else:
+        model_stem = args.model
+        out_folder = (
+            Path(args.out_folder)
+            / args.dataset_name
+            / model_stem
+            / f"f{args.fold}"
+            / folder_type
+            / tag
+        )
+
     out_folder.mkdir(exist_ok=True, parents=True)
-
-    model_stem = Path(args.ckpt_path).stem
-
-    ckpt = torch.load(
-        args.ckpt_path,
-        map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    )
 
     # Class / label map loading
     if args.class_map != "none":
@@ -53,10 +67,33 @@ if __name__ == "__main__":
         load_to_memory=args.load_to_memory,
     )
 
-    model = src.LitModule(**ckpt["hyper_parameters"])
+    if args.feature_extraction:
+        print("Loading a FeatureExtractionModule...")
+        if args.ckpt_path:
+            model = src.FeatureExtractionModule(
+                feature_extraction_mode=args.feature_extraction,
+                **ckpt["hyper_parameters"],
+            )
+        else:
+            model = src.FeatureExtractionModule(
+                feature_extraction_mode=args.feature_extraction,
+                model=args.model,
+                pretrained=True,
+            )
+    else:  # Normal prediction
+        model = src.LitModule(**ckpt["hyper_parameters"])
 
-    model.load_state_dict(ckpt["state_dict"])
-    model.label_transform = class_map["inv"]
+    if args.ckpt_path:
+        model.load_state_dict(ckpt["state_dict"])
+
+    # Inverse class map loading
+    if args.inverse_class_map == "same":
+        model.label_transform = class_map["inv"]
+    elif args.inverse_class_map == "none":
+        model.label_transform = None
+    else:
+        raise ValueError("inverse_class_map must be 'same' or 'none")
+
     model.freeze()
 
     trainer = pl.Trainer(
@@ -66,6 +103,7 @@ if __name__ == "__main__":
         logger=False,
     )
 
+    # Actual prediction
     if not args.tta:
         trainer.test(model, dm)
         y_true, y_pred = model.y_true, model.y_pred
@@ -78,22 +116,43 @@ if __name__ == "__main__":
 
     dm.visualize_datasets(out_folder)
 
-    df_pred = pd.DataFrame({"y_true": y_true, "y_pred": y_pred})
-
-    if n_classes > 1:
-        softmax = model.softmax
-
-        if args.tta:
-            softmax = dm.tta_process_softmax(softmax)
-        n_classes = softmax.shape[1]
-        classes = class_map["inv"](list(range(n_classes)))
-        df_prob = pd.DataFrame(data=softmax, columns=classes)
-        df = pd.concat((df_pred, df_prob), axis=1)
-    else:
-        df = df_pred
-
     out_stem = f"{args.out_prefix}_{model_stem}_{args.aug}"
     if args.tta:
         out_stem += "_tta"
-    outname = out_stem + ".csv"
-    df.to_csv(out_folder / outname, index=False)
+
+    if not args.feature_extraction:  # Normal softmax or logit output
+        df_pred = pd.DataFrame({"y_true": y_true, "y_pred": y_pred})
+
+        # Classification
+        if n_classes > 1:
+            if args.return_logits:
+                output = model.logits
+            else:
+                output = model.softmax
+
+            if args.tta:
+                # Calculates the mean across tta repetitions
+                output = dm.tta_process_output(output)
+            n_classes = output.shape[1]
+
+            # Handle out-of distribution prediction
+            if args.inverse_class_map == "same":
+                classes = class_map["inv"](list(range(n_classes)))
+            elif args.inverse_class_map == "none":
+                classes = range(output.shape[1])
+
+            df_prob = pd.DataFrame(data=output, columns=classes)
+            df = pd.concat((df_pred, df_prob), axis=1)
+
+        # Regression
+        else:
+            df = df_pred
+
+        outname = out_stem + ".csv"
+        df.to_csv(out_folder / outname, index=False)
+        print(out_folder / outname)
+    else:  # Outputs of feature extraction can vary depending on the pooling
+        outname = f"{out_stem}_{args.feature_extraction}.p"
+        with open(out_folder / outname, "wb") as f:
+            pickle.dump({"y_true": y_true, "features": y_pred}, f)
+        print(out_folder / outname)
