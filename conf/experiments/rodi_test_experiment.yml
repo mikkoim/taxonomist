@@ -1,0 +1,32 @@
+models:
+  rodi-full:
+    predictions: outputs/rodi/rodi-allfolds_resnet18/predictions/rodi-allfolds_resnet18_rodi_none_grouped.csv
+    metrics: outputs/rodi/rodi-allfolds_resnet18/metrics/metrics_rodi-allfolds_resnet18_rodi_none_grouped.csv
+    dataset: rodi
+    length: grouped
+    tags:
+      grouped: True
+      tta: False
+      another_test_tag: True
+      tag01: "notes on this model"
+  rodi-fold0:
+    predictions: outputs/rodi/rodi_resnet18/f0/predictions/rodi_none/_rodi_resnet18_f0_240320-2005-78d4_epoch12_val-loss0.31_none_grouped.csv
+    metrics: outputs/rodi/rodi_resnet18/f0/predictions/metrics/metrics__rodi_resnet18_f0_240320-2005-78d4_epoch12_val-loss0.31_none_grouped.csv
+    dataset: rodi
+    length: grouped
+    tags:
+      grouped: True
+      tta: False
+      another_test_tag: True
+      tag01: "some other notes on this model"
+  nongrouped:
+    predictions: outputs/rodi/rodi-allfolds_resnet18/predictions/rodi-allfolds_resnet18_rodi_none.csv
+    metrics: outputs/rodi/rodi-allfolds_resnet18/metrics/metrics_rodi-allfolds_resnet18_rodi_none.csv
+    dataset: rodi
+    length: not-grouped
+    tags:
+      grouped: False
+      tta: False
+      another_test_tag: True
+      tags-can-be-anything: 42
+      tag01: "some other notes on this model"

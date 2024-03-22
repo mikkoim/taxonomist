@@ -47,7 +47,9 @@ class Model(nn.Module):
         super().__init__()
 
         self.h_dim = (
-            timm.create_model(model, pretrained=False).get_classifier().in_features
+            timm.create_model(model, pretrained=False, num_classes=1)
+            .get_classifier()
+            .in_features
         )
         self.base_model = timm.create_model(model, num_classes=0, pretrained=pretrained)
 
@@ -229,13 +231,68 @@ class LitModule(pl.LightningModule):
         """
         outputs = self.test_step_outputs
         if self.is_classifier:
-            self.softmax = (
-                torch.cat([x["out"] for x in outputs])
-                .softmax(dim=1)
-                .cpu()
-                .detach()
-                .numpy()
-            )
+            logits = torch.cat([x["out"] for x in outputs])
+            self.softmax = logits.softmax(dim=1).cpu().detach().numpy()
+            self.logits = logits.cpu().detach().numpy()
         self.y_true, self.y_pred = self.common_epoch_end(outputs, "test")
 
+class FeatureExtractionModule(pl.LightningModule):
+    def __init__(
+        self,
+        feature_extraction_mode: str,
+        model: str,
+        freeze_base: bool = False,
+        pretrained: bool = True,
+        n_classes: int = 0,
+        criterion: str = "cross-entropy",
+        opt: dict = {"name": "adam"},
+        lr: float = 1e-4,
+        label_transform=None,
+    ):
+        """
+        The feature exctraction module implements the same interface as the basic LitModule
+        for passing LitModule parameters.
+        """
+        super().__init__()
+        self.save_hyperparameters(ignore=["label_transform"])
+        self.example_input_array = torch.randn((1, 3, 224, 224))
 
+        self.feature_extraction_mode = feature_extraction_mode
+        self.model = Model(
+            model=model,
+            freeze_base=freeze_base,
+            pretrained=pretrained,
+            n_classes=n_classes,
+        )
+        self.lr = lr
+        self.label_transform = label_transform
+        self.criterion = choose_criterion(criterion)
+        self.opt_args = opt
+
+        self.training_step_outputs = []
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
+
+    def forward(self, x):
+        if self.feature_extraction_mode == "unpooled":
+            return self.model.base_model.forward_features(x)
+        elif self.feature_extraction_mode == "pooled":
+            return self.model.base_forward(x)
+        else:
+            raise Exception(
+                f"Invalid feature extraction mode {self.feature_extraction_mode}"
+            )
+
+    def test_step(self, batch, batch_idx):
+        bx, by = batch
+        out = self.forward(bx)
+        outputs = {
+            "y_true": by.cpu().detach().numpy(),
+            "out": out.cpu().detach().numpy(),
+        }
+        self.test_step_outputs.append(outputs)
+
+    def on_test_epoch_end(self):
+        outputs = self.test_step_outputs
+        self.y_true = [x["y_true"] for x in outputs]
+        self.y_pred = [x["out"] for x in outputs]

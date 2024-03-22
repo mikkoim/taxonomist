@@ -1,4 +1,4 @@
-This workflow describes image classification for the FinBenthic2-dataset
+This workflow describes image classification for the FinBenthic2-dataset. It follows the same structure as the RODI dataset workflow, but with commands specific for the FinBenthic2-dataset.
 
 ## 1. Data loading
 
@@ -12,8 +12,8 @@ Analyze the raw dataset like in `notebooks/01_raw_data_analysis_finbenthic2.ipyn
 
 ```bash
 python scripts/preprocessing/process_finbenthic2.py \
-    --IDA_folder=$TMPDIR/IDA \ 
-    --out_folder=data/processed/finbenthic2
+    --IDA_folder $TMPDIR/IDA \
+    --out_folder data/processed/finbenthic2
 ```
 
 ## 4. Train-test-splits
@@ -24,8 +24,11 @@ python scripts/01_train_test_split.py \
     --target_col "taxon" \
     --group_col "individual" \
     --n_splits 5 \
-    --out_folder "data/processed/finbenthic2"
+    --out_folder "data/processed/finbenthic2" \
+    --random_state 123
 ```
+
+We specified a random state `123` since the default resulted in a class missing from the first test fold. This is not necessary, but sometimes desired.
 
 ## 5. Training
 
@@ -49,14 +52,14 @@ python scripts/02_train.py \
     --load_to_memory 'False' \
     --model 'resnet18' \
     --opt 'adamw' \
-    --max_epochs 10 \
+    --max_epochs 2 \
     --min_epochs 0 \
-    --early_stopping 'True' \
-    --early_stopping_patience 10 \
+    --early_stopping 'False' \
+    --early_stopping_patience 0 \
     --criterion 'cross-entropy' \
     --lr 0.0001 \
     --auto_lr 'True' \
-    --log_dir 'finbenthic2' \
+    --log_dir 'finbenthic2test' \
     --out_folder 'outputs' \
     --out_prefix 'finbenthic2' \
     --deterministic 'True'

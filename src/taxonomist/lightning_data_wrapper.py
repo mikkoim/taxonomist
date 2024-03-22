@@ -21,7 +21,6 @@ class Dataset(torch.utils.data.Dataset):
     Args:
         filenames: list of filepaths
         y: list of targets
-        imsize: image is resized to this size
         preload_transform: transform to apply to the PIL image after loading and before
                             loading into memory
         transform: transform to apply to the image after loading
@@ -32,14 +31,12 @@ class Dataset(torch.utils.data.Dataset):
         self,
         filenames: list,
         y: list,
-        imsize,
         preload_transform=None,
         transform=None,
         load_to_memory=True,
     ):
         self.filenames = filenames
         self.y = y
-        self.imsize = imsize
         self.preload_transform = preload_transform
         self.transform = transform
         self.mem_dataset = None
@@ -157,7 +154,6 @@ class LitDataModule(pl.LightningDataModule):
         self.trainset = Dataset(
             fnames["train"],
             labels["train"],
-            self.imsize,
             preload_transform=None,
             transform=self.tf_train,
             load_to_memory=self.load_to_memory,
@@ -166,7 +162,6 @@ class LitDataModule(pl.LightningDataModule):
         self.valset = Dataset(
             fnames["val"],
             labels["val"],
-            self.imsize,
             preload_transform=None,
             transform=self.tf_test,
             load_to_memory=self.load_to_memory,
@@ -175,7 +170,6 @@ class LitDataModule(pl.LightningDataModule):
         self.testset = Dataset(
             fnames["test"],
             labels["test"],
-            self.imsize,
             preload_transform=None,
             transform=self.tf_test,
             load_to_memory=self.load_to_memory,
@@ -185,7 +179,6 @@ class LitDataModule(pl.LightningDataModule):
             Dataset(
                 fnames["test"],
                 labels["test"],
-                self.imsize,
                 preload_transform=None,
                 transform=self.tf_train,
                 load_to_memory=self.load_to_memory,
@@ -239,8 +232,8 @@ class LitDataModule(pl.LightningDataModule):
         A = y.reshape(self.tta_n, len(self.testset))
         return pd.DataFrame(A).T.mode(axis=1).iloc[:, 0].values
 
-    def tta_process_softmax(self, softmax):
-        A = softmax.T.reshape(softmax.shape[1], self.tta_n, len(self.testset))
+    def tta_process_output(self, output):
+        A = output.T.reshape(output.shape[1], self.tta_n, len(self.testset))
         return A.mean(axis=1).T
 
     def visualize_datasets(self, folder):

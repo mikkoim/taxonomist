@@ -11,6 +11,9 @@ Features:
 - Implements best practices for classifier evaluation, such as bootstrap confidence intervals and cross-validation.
 
 In essence, Taxonomist is a framework around [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/), providing an opinionated project structure for scientific experiments using supervised learning on hierarchical data.
+
+Note that Taxonomist is still under heavy development and large changes can be introduced!
+
 # Installation
 
 Clone the repository
@@ -47,31 +50,55 @@ And install the library package:
 pip install -e .
 ```
 
+# Getting started
+
+The workflow in [docs/workflows/00_workflow_rodi.md](docs/workflows/00_workflow_rodi.md) is a good place to start. It walks through all the features, and the model training takes around 30 minutes with a decent GPU. 
+
 # Overview
 
 To use Taxonomist with your own data, you have to produce data loading functions to make your dataset compatible with the pipeline.
 
-1. Load datasets
-    - Write loading instructions (examples in `docs/dataset_loading.md`)
-    - (Optional: Perform raw data analysis (examples in `notebooks/`))
-2. Preprocessing
-    - Create a preprocessing script (examples in `scripts/preprocessing/`)
-    - Add data loading functions to the library (examples in `src/taxonomist/datasets.py`)
+1. **Load and get to know your dataset**
 
-3. Workflow document
-    - Document your workflow (commands etc.) into a workflow file. (Examples in `docs/workflows`)
+    Analyze your dataset structure and find a way to represent the dataset in a table format. The table should contain the at least the following columns:
+
+    - filename
+    - label
+
+    If the dataset has a nested folder structure, columns that specify the location in the folder structure are needed. Also, if there is a grouping among the images, for example if there are several images from a specimen, a grouping identifier is needed.
+
+    | label | folder | individual | filename |
+    | --- | --- | --- | --- |
+    | cat | felines | A | 01.png |
+    | cat | felines | A | 02.png |
+    | dog | canines | B | 03.png |
+    | dog | canines | B | 04.png |
+    | wolf | canines | C | 05.png |
+
+    The columns can also contain any other metadata that is seemed useful.
+
+    It is useful to create a separate `data` folder, with two subfolders:
+    - `raw`: Contains raw data that should be immutable
+    - `processed`: Contains files that are processed from the raw data using scripts, like the preprocessing scripts.
+
+1. **Preprocessing**
+    - Create a preprocessing script that reads the filenames in your dataset and produces a table like above (examples in `scripts/preprocessing/`). The preprocessing script should also create a list of all the labels in the dataset into a text file. This label list is used as a label mapping, ensuring that all labels get a proper index even for folds where all labels are not present.
+    - Add data loading functions to the library (examples in `src/taxonomist/datasets.py`)
+    
+    The data loading function should be able resolve into a full path when given a root directory. The root directory can be specified during training so the data location can change without changing the dataset table.
+
 
 When these steps are complete, Taxonomist can automate the rest of the classification pipeline:
 
-4. Train-test-val -splits
-5. Training
-6. Prediction
+3. **Train-test-val -splits**: Handles splitting the dataset into train, test and validation splits, handling stratification and possible groups where data leakage could occur. The test sets are mutually exclusive, together becoming the full dataset.
+3. **Training**: Trains a deep neural network of your choice from the architectures supported by `timm`. 
+3. **Prediction**: 
     - Prediction with test-time augmentation
-    - Prediction for other datasets 
-7. Evaluation
+    - Prediction can be done easily across datasets, with previously trained models and mixed label sets.
+3. **Evaluation**:
     - Cross-validation
-    - Grouping
-8. Comparison
+    - Grouping: If the unit of classification is a group, such as an individual specimen, all classifications from this group can be aggregated to produce better estimates.
+3. **Comparison**: Comparison between models, datasets and experiments is easy with the flexible comparison script. It produces a csv file with all the results for easy analysis. Experiments, models and datasets can be tagged with arbitary tags that appear in the final result table.
 
 Each step produces intermediary files in csv format, making custom analysis and modifications easy.
 

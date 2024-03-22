@@ -148,6 +148,7 @@ if __name__ == "__main__":
     parser.add_argument("--bootstrap_alpha", default=0.95)
     parser.add_argument("--no_save", action="store_true")
 
+    parser.add_argument("--out_prefix", type=str, default="metrics")
     parser.add_argument("--around", default=4, type=int)
 
     args = parser.parse_args()
@@ -229,6 +230,6 @@ if __name__ == "__main__":
         out_folder = csv_path.parents[1] / "metrics"
         out_folder.mkdir(exist_ok=True, parents=True)
 
-        out_fname = out_folder / f"metrics_{csv_stem}.csv"
+        out_fname = out_folder / f"{args.out_prefix}_{csv_stem}.csv"
         results.to_csv(out_fname, index=False)
         print(f"Saved to {out_fname}")

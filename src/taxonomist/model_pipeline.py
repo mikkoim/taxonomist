@@ -7,6 +7,8 @@ import sys
 from typing import Dict, Optional
 from dataclasses import dataclass, replace
 import pandas as pd
+import pickle
+
 
 import torch
 import lightning.pytorch as pl
@@ -17,7 +19,7 @@ from lightning.pytorch.tuner import Tuner
 import wandb
 
 from .lightning_data_wrapper import Dataset, LitDataModule
-from .lightning_model_wrapper import Model, LitModule
+from .lightning_model_wrapper import Model, LitModule, FeatureExtractionModule
 from .utils import load_class_map
 
 @dataclass(frozen=True)
@@ -25,9 +27,7 @@ class LightningModelArguments():
     timm_model_name:str
     data_folder:str          
     log_dir:str
-    out_prefix:str # ''
     class_map_name:str
-    imsize:int
     csv_path:Optional[str]
     label_column:Optional[str]
     out_folder:str
@@ -47,7 +47,7 @@ class LightningModelArguments():
     tta_n:int=5
     aug:str='only_flips'
     debug:bool=False
-    global_seed:int=42
+    random_state:int=42
     smoke_test:bool=False
     log_every_n_steps:Optional[int]=10
     opt:str='adam'
@@ -56,6 +56,12 @@ class LightningModelArguments():
     precision:int=32
     deterministic:bool=False
     resume:bool=False
+    inverse_class_map:str="same"
+    suffix=None
+    out_prefix:str="metrics"
+    imsize:int=None
+    feature_extraction:str=None
+    return_logits:bool=False
 
 
 class LightningModelWrapper:
@@ -66,7 +72,7 @@ class LightningModelWrapper:
         self.outname = f"{self.basename}_f{args.fold}_{self.uid}"
 
         if args.deterministic:
-            pl.seed_everything(seed=args.global_seed)
+            pl.seed_everything(seed=args.random_state)
 
     def _parse_uid(self):
         # It is possible to resume to an existing run that was cancelled/stopped if argument ckpt_path is provided that contains the weights of when the run was stopped/cancelled
@@ -88,18 +94,32 @@ class LightningModelWrapper:
                 Path(self.args.out_folder) / Path(self.args.dataset_name) / self.basename / f"f{self.args.fold}"
             )
         else:
-            tag = f"{self.args.aug}"
+            tag = f"{self.args.dataset_name}_{self.args.aug}"
             if self.args.tta:
                 tag += "_tta"
-            out_folder = Path(self.args.ckpt_path).parents[0] / "predictions" / tag
+            folder_type = "features" if self.args.feature_extraction else "predictions"
+            if self.args.ckpt_path:
+                out_folder = Path(self.args.ckpt_path).parents[0] / folder_type / tag
+            else:
+                model_stem = self.args.model
+                out_folder = (
+                    Path(self.args.out_folder)
+                    / self.args.dataset_name
+                    / model_stem
+                    / f"f{self.args.fold}"
+                    / folder_type
+                    / tag
+                )
 
         out_folder.mkdir(exist_ok=True, parents=True)
         return out_folder
     
     def _create_prediction_out_folder(self):
-        tag = f"{self.args.aug}"
+        tag = f"{self.args.dataset_name}_{self.args.aug}"
         if self.args.tta:
             tag += "_tta"
+
+        folder_type = "features" if self.args.feature_extraction else "predictions"
         out_folder = Path(self.args.ckpt_path).parents[0] / "predictions" / tag
         out_folder.mkdir(exist_ok=True, parents=True)
 
@@ -147,10 +167,33 @@ class LightningModelWrapper:
             )
             return model
         else:
-            model = LitModule(**ckpt["hyper_parameters"])
+            if self.args.feature_extraction:
+                print("Loading a FeatureExtractionModule...")
+                if self.args.ckpt_path:
+                    model = FeatureExtractionModule(
+                        feature_extraction_mode=self.args.feature_extraction,
+                        **ckpt["hyper_parameters"],
+                    )
+                else:
+                    model = FeatureExtractionModule(
+                        feature_extraction_mode=self.args.feature_extraction,
+                        model=self.args.model,
+                        pretrained=True,
+                    )
+            else:  # Normal prediction
+                model = LitModule(**ckpt["hyper_parameters"])
 
-            model.load_state_dict(ckpt["state_dict"])
-            model.label_transform = class_map["inv"]
+            if self.args.ckpt_path:
+                model.load_state_dict(ckpt["state_dict"])
+
+            # Inverse class map loading
+            if self.args.inverse_class_map == "same":
+                model.label_transform = class_map["inv"]
+            elif self.args.inverse_class_map == "none":
+                model.label_transform = None
+            else:
+                raise ValueError("inverse_class_map must be 'same' or 'none")
+            
             model.freeze()
             return model
     
@@ -200,6 +243,7 @@ class LightningModelWrapper:
         )
 
         logger.watch(model)
+        wandb.init()
         wandb.config.update(self.args, allow_val_change=True)
         # logger = TensorBoardLogger(args.log_dir,
         #                            name=basename,
@@ -261,6 +305,7 @@ class LightningModelWrapper:
             f.write(yaml.dump(vars(wandb.config)["_items"]))
 
     def _predict(self, trainer, model, dm, class_map, n_classes, out_folder = None):
+        # Actual prediction
         if not self.args.tta:
             trainer.test(model, dm)
             y_true, y_pred = model.y_true, model.y_pred
@@ -271,26 +316,51 @@ class LightningModelWrapper:
             y_true = dm.tta_process(model.y_true)
             y_pred = dm.tta_process(model.y_pred)
 
-        df_pred = pd.DataFrame({"y_true": y_true, "y_pred": y_pred})
-        if n_classes > 1:
-            softmax = model.softmax
-
-            if self.args.tta:
-                softmax = dm.tta_process_softmax(softmax)
-            n_classes = softmax.shape[1]
-            classes = class_map["inv"](list(range(n_classes)))
-            df_prob = pd.DataFrame(data=softmax, columns=classes)
-            df = pd.concat((df_pred, df_prob), axis=1)
-        else:
-            df = df_pred
-
         if out_folder:
-            model_stem = Path(self.args.ckpt_path).stem
+            if self.args.ckpt_path:
+                model_stem = Path(self.args.ckpt_path).stem
+            else:
+                model_stem = self.args.model
+            
             out_stem = f"{self.args.out_prefix}_{model_stem}_{self.args.aug}"
             if self.args.tta:
                 out_stem += "_tta"
-            outname = out_stem + ".csv"
-            df.to_csv(out_folder / outname, index=False)
+            if not self.args.feature_extraction:  # Normal softmax or logit output
+                df_pred = pd.DataFrame({"y_true": y_true, "y_pred": y_pred})
+
+                # Classification
+                if n_classes > 1:
+                    if self.args.return_logits:
+                        output = model.logits
+                    else:
+                        output = model.softmax
+
+                    if self.args.tta:
+                        # Calculates the mean across tta repetitions
+                        output = dm.tta_process_output(output)
+                    n_classes = output.shape[1]
+
+                    # Handle out-of distribution prediction
+                    if self.args.inverse_class_map == "same":
+                        classes = class_map["inv"](list(range(n_classes)))
+                    elif self.args.inverse_class_map == "none":
+                        classes = range(output.shape[1])
+
+                    df_prob = pd.DataFrame(data=output, columns=classes)
+                    df = pd.concat((df_pred, df_prob), axis=1)
+
+                # Regression
+                else:
+                    df = df_pred
+
+                outname = out_stem + ".csv"
+                df.to_csv(out_folder / outname, index=False)
+                print(out_folder / outname)
+            else:  # Outputs of feature extraction can vary depending on the pooling
+                outname = f"{out_stem}_{self.args.feature_extraction}.p"
+                with open(out_folder / outname, "wb") as f:
+                    pickle.dump({"y_true": y_true, "features": y_pred}, f)
+                print(out_folder / outname)
 
         return df
 
