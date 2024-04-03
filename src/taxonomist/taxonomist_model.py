@@ -18,12 +18,12 @@ from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.tuner import Tuner
 import wandb
 
-from .lightning_data_wrapper import Dataset, LitDataModule
-from .lightning_model_wrapper import Model, LitModule, FeatureExtractionModule
+from .data import Dataset, LitDataModule
+from .model import Model, LitModule, FeatureExtractionModule
 from .utils import load_class_map
 
 @dataclass(frozen=True)
-class LightningModelArguments():
+class TaxonomistModelArguments():
     timm_model_name:str
     data_folder:str          
     log_dir:str
@@ -64,7 +64,7 @@ class LightningModelArguments():
     return_logits:bool=False
 
 
-class LightningModelWrapper:
+class TaxonomistModel:
     def __init__(self, args: LightningModelArguments):
         self.args = args
         self.basename = f"{args.out_prefix}_{args.timm_model_name}"

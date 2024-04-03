@@ -24,7 +24,7 @@ def main(args):
     user_arg_dict["timm_model_name"] = user_arg_dict.pop("model")
     user_arg_dict["class_map_name"] = user_arg_dict.pop("class_map")
 
-    return src.LightningModelWrapper(src.LightningModelArguments(**user_arg_dict)).predict()
+    return src.TaxonomistModel(src.TaxonomistModelArguments(**user_arg_dict)).predict()
 
 if __name__ == "__main__":
     trainer = main(sys.argv[1:])
