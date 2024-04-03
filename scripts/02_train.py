@@ -21,8 +21,6 @@ The main training script.
 """
 
 def main(args):
-    os.environ['http_proxy'] = 'http://gate102.vyh.fi:81'
-    os.environ['https_proxy'] = 'http://gate102.vyh.fi:81'
     parser = argparse.ArgumentParser(description=DESCRIPTION)
 
     parser = src.add_dataset_args(parser)
