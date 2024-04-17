@@ -66,7 +66,7 @@ python scripts/02_train.py \
     --out_prefix 'rodi_new' \
     --deterministic 'True'
 ```
-It saves a single model trained with only the first fold to `outputs/rodi/rodi_resnet18/f0`
+It saves a single model trained with only the first fold to `outputs/rodi/rodi_new_resnet18/f0`
 This folder then contains a config `config_<run_id>.yml` and two checkpoint files: last and the checkpoint with the lowest validation loss.
 Visualizations of applied augmentations are seen in `aug-<augname>-<run_id>` folder.
 
@@ -93,12 +93,12 @@ python scripts/02_train.py \
     --tta 'False' \
     --model 'resnet18' \
     --opt 'adamw' \
-    --max_epochs 10 \
-    --min_epochs 5 \
+    --max_epochs 5 \
+    --min_epochs 0 \
     --early_stopping 'False' \
     --early_stopping_patience 0 \
     --criterion 'cross-entropy' \
-    --lr 0.003 \
+    --lr 0.004 \
     --auto_lr 'False' \
     --log_dir 'roditest' \
     --out_folder 'outputs' \
@@ -121,7 +121,7 @@ Prediction can also produce logit outputs with the parameter `--return_logits 'T
 
 ```bash
 # This just sets the checkpoint as the first (best) model in the directory above, as the unique identifier is always different.
-export CKPT_PATH=$(find "outputs/rodi/rodi_resnet18/f0/" -type f -name "rodi_resnet18_f0*.ckpt" ! -name "*_last.ckpt" | head -1)
+export CKPT_PATH=$(find "outputs/rodi/rodi_new_resnet18/f0/" -type f -name "rodi_new_resnet18*.ckpt" ! -name "*_last.ckpt" | head -1)
 python scripts/03_predict.py \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
@@ -138,7 +138,7 @@ python scripts/03_predict.py \
     --ckpt_path $CKPT_PATH
 ```
 
-The predictions are saved to `outputs/rodi/rodi_resnet18/f0/predictions/rodi_none`
+The predictions are saved to `outputs/rodi/rodi_new_resnet18/f0/predictions/rodi_none`
 The output folder is named, based on the augmentation used, this case 'none'. If we want to use test-time-augmentation, the choice of augmentation has an effect on the results:
 
 ```bash
@@ -203,7 +203,6 @@ python scripts/03_predict.py \
     --label "family" \
     --fold $i \
     --class_map "data/processed/rodi/rodi_label_map.txt" \
-    --inverse_class_map "data/processed/rodi/rodi_label_map_copy.txt" \
     --imsize 224 \
     --batch_size 1024 \
     --aug 'none' \
@@ -235,10 +234,10 @@ Once we have a prediction file, either for a single fold of the full dataset, we
 
 Grouping for the single fold
 ```bash
-export CKPT_PATH=$(find "outputs/rodi/rodi_resnet18/f0/" -type f -name "rodi_resnet18_f0_*.ckpt" ! -name "*_last.ckpt" | head -1)
+export CKPT_PATH=$(find "outputs/rodi/rodi_new_resnet18/f0/" -type f -name "rodi_new_resnet18_f0_*.ckpt" ! -name "*_last.ckpt" | head -1)
 export CKPT_STEM=$(basename "$CKPT_PATH" | sed 's/\.[^.]*$//')
 python scripts/04_group_predictions.py \
-    --predictions "outputs/rodi/rodi_resnet18/f0/predictions/rodi_none/_${CKPT_STEM}_none.csv" \
+    --predictions "outputs/rodi/rodi_new_resnet18/f0/predictions/rodi_none/_${CKPT_STEM}_none.csv" \
     --reference_csv "data/processed/rodi/01_rodi_processed_5splits_family.csv" \
     --reference_target "family" \
     --fold 0 \
@@ -270,6 +269,7 @@ python scripts/05_evaluate.py \
     --predictions "outputs/rodi/rodi-allfolds_resnet18/predictions/rodi-allfolds_resnet18_rodi_none.csv" \
     --metric_config conf/eval.yaml
 
+# grouped
 python scripts/05_evaluate.py \
     --predictions "outputs/rodi/rodi-allfolds_resnet18/predictions/rodi-allfolds_resnet18_rodi_none_grouped.csv" \
     --metric_config conf/eval.yaml
@@ -286,7 +286,7 @@ outputs in different locations to compare.
 
 ```bash
 python scripts/05_evaluate.py \
-    --predictions "outputs/rodi/rodi_resnet18/f0/predictions/rodi_none/_${CKPT_STEM}_none_grouped.csv" \
+    --predictions "outputs/rodi/rodi_new_resnet18/f0/predictions/rodi_none/_${CKPT_STEM}_none_grouped.csv" \
     --metric_config conf/eval.yaml
 ```
 

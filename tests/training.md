@@ -1,4 +1,3 @@
-
 # Normal training
 This should train for around 23 epochs, or 5 minutes
 ```bash
