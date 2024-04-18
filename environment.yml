@@ -53,7 +53,6 @@ dependencies:
 
   # Others
   - tqdm
-  - pylint
   - pytest
   - ruff
   - openpyxl
@@ -61,7 +60,6 @@ dependencies:
   - pip
   - pip:
     - timm
-    - black
     - albumentations
     - omegaconf
     - pygbif
