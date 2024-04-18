@@ -128,7 +128,9 @@ class TaxonomistModel:
 
     def _load_class_map(self):
         # Class / label map loading
-        if self.args.class_map_name is not None:
+        if (self.args.class_map_name is not None) and (
+            self.args.class_map_name != "none"
+        ):
             class_map = load_class_map(self.args.class_map_name)
             n_classes = len(class_map["fwd_dict"])
         else:
