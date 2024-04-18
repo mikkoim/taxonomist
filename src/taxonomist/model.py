@@ -1,17 +1,10 @@
-from pathlib import Path
-import uuid
-from datetime import datetime
-import yaml
-import sys
-
-import torch
-import torch.nn.functional as F
-import torch.nn as nn
 import lightning.pytorch as pl
-from albumentations.pytorch.transforms import ToTensorV2
 import timm
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from albumentations.pytorch.transforms import ToTensorV2
 from sklearn.metrics import accuracy_score, f1_score
-import wandb
 
 
 def cross_entropy(output, target):
@@ -194,7 +187,7 @@ class LitModule(pl.LightningModule):
 
     # Validation
     def validation_step(self, batch, batch_idx):
-        """"
+        """
         Execute a validation step and log relevant information.
         """
         _, y, out, val_loss = self.common_step(batch, batch_idx)
@@ -235,6 +228,7 @@ class LitModule(pl.LightningModule):
             self.softmax = logits.softmax(dim=1).cpu().detach().numpy()
             self.logits = logits.cpu().detach().numpy()
         self.y_true, self.y_pred = self.common_epoch_end(outputs, "test")
+
 
 class FeatureExtractionModule(pl.LightningModule):
     def __init__(

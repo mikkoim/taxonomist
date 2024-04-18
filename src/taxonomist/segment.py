@@ -1,17 +1,15 @@
 """Defines functions for handling segmentation masks and bounding boxes"""
 
-import numpy as np
 import cv2
-import pycocotools
 import matplotlib.pyplot as plt
-
+import numpy as np
+import pycocotools
 from PIL import Image
 from pycocotools import mask as mask_utils
-from skimage.filters import gaussian, threshold_triangle, unsharp_mask
+from scipy import ndimage as ndi
 from skimage import exposure
 from skimage.color import rgb2hsv
-from scipy import ndimage as ndi
-from tqdm import tqdm
+from skimage.filters import gaussian, threshold_triangle, unsharp_mask
 
 
 def get_bbox(mask):

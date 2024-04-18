@@ -1,8 +1,8 @@
-import pandas as pd
-from pathlib import Path
-import numpy as np
-
 import argparse
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
 
 DESCRIPTION = """
 Combines the outputs from multiple cross-validation folds into a since prediction vector.

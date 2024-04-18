@@ -1,8 +1,8 @@
-import pandas as pd
-from pathlib import Path
-import numpy as np
-
 import argparse
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
 
 DESCRIPTION = """
 Performs aggregation to predictions, based on a group variable in the original dataset.

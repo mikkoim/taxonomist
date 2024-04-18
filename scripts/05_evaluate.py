@@ -1,13 +1,13 @@
-import pandas as pd
+import argparse
 from pathlib import Path
+from pprint import pprint
+
 import numpy as np
+import pandas as pd
+import sklearn.metrics
+from joblib import Parallel, delayed
 from omegaconf import OmegaConf
 from tqdm import tqdm
-import argparse
-from pprint import pprint
-from joblib import Parallel, delayed
-
-import sklearn.metrics
 
 DESCRIPTION = """
 Calculates metrics to prediction outputs.

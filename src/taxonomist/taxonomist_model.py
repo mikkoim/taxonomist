@@ -1,67 +1,66 @@
-
-from pathlib import Path
-import uuid
-from datetime import datetime
-import yaml
-import sys
-from typing import Dict, Optional
-from dataclasses import dataclass, replace
-import pandas as pd
 import pickle
+import uuid
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
 
-
-import torch
 import lightning.pytorch as pl
-from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
+import pandas as pd
+import torch
+import yaml
+from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.tuner import Tuner
+
 import wandb
 
-from .data import Dataset, LitDataModule
-from .model import Model, LitModule, FeatureExtractionModule
+from .data import LitDataModule
+from .model import FeatureExtractionModule, LitModule
 from .utils import load_class_map
 
+
 @dataclass(frozen=True)
-class TaxonomistModelArguments():
-    timm_model_name:str
-    data_folder:str          
-    log_dir:str
-    class_map_name:str
-    csv_path:Optional[str]
-    label_column:Optional[str]
-    out_folder:str
-    min_epochs:Optional[int]=None
-    max_epochs:Optional[int]=None
-    fold:int=0
-    batch_size:int=256
-    criterion:str='mse'
-    lr:float=1e-4
-    auto_lr:bool=False
-    early_stopping:bool=False
-    dataset_name:str='imagefolder'
-    pretrained:bool=True
-    freeze_base:bool=False
-    ckpt_path:Optional[str]=None #required if resume=True
-    tta:bool=False
-    tta_n:int=5
-    aug:str='only_flips'
-    debug:bool=False
-    random_state:int=42
-    smoke_test:bool=False
-    log_every_n_steps:Optional[int]=10
-    opt:str='adam'
-    load_to_memory:bool=False
-    early_stopping_patience:int=5 #used if early_stopping=True
-    precision:int=32
-    deterministic:bool=False
-    resume:bool=False
-    inverse_class_map:str="same"
-    suffix=None
-    out_prefix:str="metrics"
-    imsize:int=None
-    feature_extraction:str=None
-    return_logits:bool=False
+class TaxonomistModelArguments:
+    timm_model_name: str
+    data_folder: str
+    log_dir: str
+    class_map_name: str
+    csv_path: Optional[str]
+    label_column: Optional[str]
+    out_folder: str
+    min_epochs: Optional[int] = None
+    max_epochs: Optional[int] = None
+    fold: int = 0
+    batch_size: int = 256
+    criterion: str = "mse"
+    lr: float = 1e-4
+    auto_lr: bool = False
+    early_stopping: bool = False
+    dataset_name: str = "imagefolder"
+    pretrained: bool = True
+    freeze_base: bool = False
+    ckpt_path: Optional[str] = None  # required if resume=True
+    tta: bool = False
+    tta_n: int = 5
+    aug: str = "only_flips"
+    debug: bool = False
+    random_state: int = 42
+    smoke_test: bool = False
+    log_every_n_steps: Optional[int] = 10
+    opt: str = "adam"
+    load_to_memory: bool = False
+    early_stopping_patience: int = 5  # used if early_stopping=True
+    precision: int = 32
+    deterministic: bool = False
+    resume: bool = False
+    inverse_class_map: str = "same"
+    suffix = None
+    out_prefix: str = "metrics"
+    imsize: int = None
+    feature_extraction: str = None
+    return_logits: bool = False
 
 
 class TaxonomistModel:
@@ -75,7 +74,9 @@ class TaxonomistModel:
             pl.seed_everything(seed=args.random_state)
 
     def _parse_uid(self):
-        # It is possible to resume to an existing run that was cancelled/stopped if argument ckpt_path is provided that contains the weights of when the run was stopped/cancelled
+        # It is possible to resume to an existing run that was cancelled/stopped if
+        # argument ckpt_path is provided that contains the weights of when the run was
+        # stopped/cancelled
         if not self.args.resume:
             uid = datetime.now().strftime("%y%m%d-%H%M") + f"-{str(uuid.uuid4())[:4]}"
         else:
@@ -91,7 +92,10 @@ class TaxonomistModel:
     def _create_out_folder(self, training=True):
         if training:
             out_folder = (
-                Path(self.args.out_folder) / Path(self.args.dataset_name) / self.basename / f"f{self.args.fold}"
+                Path(self.args.out_folder)
+                / Path(self.args.dataset_name)
+                / self.basename
+                / f"f{self.args.fold}"
             )
         else:
             tag = f"{self.args.dataset_name}_{self.args.aug}"
@@ -113,19 +117,18 @@ class TaxonomistModel:
 
         out_folder.mkdir(exist_ok=True, parents=True)
         return out_folder
-    
+
     def _create_prediction_out_folder(self):
         tag = f"{self.args.dataset_name}_{self.args.aug}"
         if self.args.tta:
             tag += "_tta"
 
-        folder_type = "features" if self.args.feature_extraction else "predictions"
         out_folder = Path(self.args.ckpt_path).parents[0] / "predictions" / tag
         out_folder.mkdir(exist_ok=True, parents=True)
 
     def _load_class_map(self):
         # Class / label map loading
-        if self.args.class_map_name != None:
+        if self.args.class_map_name is not None:
             class_map = load_class_map(self.args.class_map_name)
             n_classes = len(class_map["fwd_dict"])
         else:
@@ -134,7 +137,6 @@ class TaxonomistModel:
         return class_map, n_classes
 
     def _create_data_module(self, class_map):
-
         dm = LitDataModule(
             data_folder=self.args.data_folder,
             dataset_name=self.args.dataset_name,
@@ -146,13 +148,12 @@ class TaxonomistModel:
             batch_size=self.args.batch_size,
             aug=self.args.aug,
             load_to_memory=self.args.load_to_memory,
-            tta_n=self.args.tta_n
+            tta_n=self.args.tta_n,
         )
         return dm
 
     def _create_model(self, n_classes, class_map, ckpt=None, training=True):
         if training:
-
             model = LitModule(
                 model=self.args.timm_model_name,
                 freeze_base=self.args.freeze_base,
@@ -191,10 +192,10 @@ class TaxonomistModel:
                 model.label_transform = None
             else:
                 raise ValueError("inverse_class_map must be 'same' or 'none")
-            
+
             model.freeze()
             return model
-    
+
     def _load_model(self, ckpt):
         return LitModule(**ckpt["hyper_parameters"])
 
@@ -217,7 +218,8 @@ class TaxonomistModel:
             monitor="epoch",
             mode="max",
             dirpath=out_folder,
-            filename=f"{self.outname}_" + "epoch{epoch:02d}_val-loss{val/loss:.2f}_last",
+            filename=f"{self.outname}_"
+            + "epoch{epoch:02d}_val-loss{val/loss:.2f}_last",
             auto_insert_metric_name=False,
         )
 
@@ -225,7 +227,9 @@ class TaxonomistModel:
         callbacks = [checkpoint_callback_best, checkpoint_callback_last, lr_monitor]
         if self.args.early_stopping:
             callbacks.append(
-                EarlyStopping(monitor="val/loss", patience=self.args.early_stopping_patience)
+                EarlyStopping(
+                    monitor="val/loss", patience=self.args.early_stopping_patience
+                )
             )
         return callbacks
 
@@ -300,7 +304,7 @@ class TaxonomistModel:
         with open(out_folder / f"config_{uid}.yml", "w") as f:
             f.write(yaml.dump(vars(wandb.config)["_items"]))
 
-    def _predict(self, trainer, model, dm, class_map, n_classes, out_folder = None):
+    def _predict(self, trainer, model, dm, class_map, n_classes, out_folder=None):
         # Actual prediction
         if not self.args.tta:
             trainer.test(model, dm)
@@ -317,7 +321,7 @@ class TaxonomistModel:
                 model_stem = Path(self.args.ckpt_path).stem
             else:
                 model_stem = self.args.model
-            
+
             out_stem = f"{self.args.out_prefix}_{model_stem}_{self.args.aug}"
             if self.args.tta:
                 out_stem += "_tta"
@@ -360,7 +364,6 @@ class TaxonomistModel:
 
         return df
 
-
     def train_model(self):
         # initialize and get folder where the parameters are saved
         out_folder = self._create_out_folder()
@@ -391,18 +394,20 @@ class TaxonomistModel:
         if self.args.auto_lr:
             self._tune_lr(trainer, model, dm)
 
-        if not self.args.debug: # In debug because we can't access wandb.config
+        if not self.args.debug:  # In debug because we can't access wandb.config
             self._save_config(out_folder, self.uid)
 
         self._perform_training(trainer, model, dm, resume_ckpt)
 
         dm.visualize_datasets(out_folder / f"aug-{self.args.aug}-{self.uid}")
 
-        print(f"Best model: {callbacks[0].best_model_path} | score: {callbacks[0].best_model_score}")
+        print(
+            f"Best model: {callbacks[0].best_model_path} | score: {callbacks[0].best_model_score}"
+        )
         return trainer
-    
+
     def predict(self):
-        gpu_count = torch.cuda.device_count()
+        # gpu_count = torch.cuda.device_count()
 
         out_folder = self._create_out_folder(training=False)
 
@@ -419,6 +424,8 @@ class TaxonomistModel:
 
         trainer = self._create_trainer(None, None, training=False)
 
-        df_pred = self._predict(trainer, model, dm, class_map, n_classes, out_folder=out_folder)
-        
+        _ = self._predict(
+            trainer, model, dm, class_map, n_classes, out_folder=out_folder
+        )
+
         dm.visualize_datasets(out_folder)

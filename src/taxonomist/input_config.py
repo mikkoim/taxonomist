@@ -1,6 +1,7 @@
 import argparse
 from distutils.util import strtobool
 
+
 def add_dataset_args(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--data_folder",
@@ -177,6 +178,6 @@ def add_program_args(parser: argparse.ArgumentParser):
         "--random_state",
         type=int,
         help="The random seed for the split. Default is 42",
-        default=42
+        default=42,
     )
     return parser

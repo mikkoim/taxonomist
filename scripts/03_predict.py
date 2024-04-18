@@ -1,12 +1,7 @@
 import argparse
 import sys
 
-import pandas as pd
-import lightning.pytorch as pl
 import taxonomist as src
-import torch
-from pathlib import Path
-import pickle
 
 
 def main(args):
@@ -26,6 +21,7 @@ def main(args):
     user_arg_dict["class_map_name"] = user_arg_dict.pop("class_map")
 
     return src.TaxonomistModel(src.TaxonomistModelArguments(**user_arg_dict)).predict()
+
 
 if __name__ == "__main__":
     trainer = main(sys.argv[1:])

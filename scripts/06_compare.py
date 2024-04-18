@@ -1,9 +1,9 @@
 import argparse
+from collections import defaultdict
 from pathlib import Path
 
 import pandas as pd
 from omegaconf import OmegaConf
-from collections import defaultdict
 
 DESCRIPTION = """
 Combines evaluation results for several models
