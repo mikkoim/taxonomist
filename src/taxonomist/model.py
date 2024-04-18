@@ -6,6 +6,20 @@ import torch.nn.functional as F
 from albumentations.pytorch.transforms import ToTensorV2
 from sklearn.metrics import accuracy_score, f1_score
 
+def mse(output, target):
+    output = output.flatten()
+    loss = F.mse_loss(output, target)
+    return loss
+
+def mape(output, target):
+    output = output.flatten()
+    loss = torch.mean((torch.abs(output - target) / target.abs()))
+    return loss
+
+def l1(output, target):
+    output = output.flatten()
+    loss = F.l1_loss(output, target)
+    return loss
 
 def cross_entropy(output, target):
     loss = F.cross_entropy(output, target.long())
@@ -15,6 +29,12 @@ def cross_entropy(output, target):
 def choose_criterion(name):
     if name == "cross-entropy":
         return cross_entropy
+    if name == "mse":
+        return mse
+    if name == "mape":
+        return mape
+    if name == "l1":
+        return l1
     else:
         raise Exception(f"Invalid criterion name '{name}'")
 
