@@ -38,11 +38,12 @@ python scripts/01_train_test_split.py \
 ```
 
 ## 5. Training
-Running this training script should take 5-10 minutes with a GPU, running for around 20 epochs before stopping.
+Running this training script should take only a few minutes.
 ```bash
 export TMPDIR = "data/raw/rodi/"
 python scripts/02_train.py \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
+    --dataset_config "conf/user_datasets.py" \
     --dataset_name "rodi" \
     --csv_path "data/processed/rodi/01_rodi_processed_5splits_family.csv" \
     --label "family" \
@@ -54,13 +55,13 @@ python scripts/02_train.py \
     --load_to_memory 'False' \
     --model 'resnet18' \
     --opt 'adamw' \
-    --max_epochs 200 \
-    --min_epochs 5 \
-    --early_stopping 'True' \
-    --early_stopping_patience 10 \
+    --max_epochs 5 \
+    --min_epochs 0 \
+    --early_stopping 'False' \
+    --early_stopping_patience 0 \
     --criterion 'cross-entropy' \
-    --lr 0.001 \
-    --auto_lr 'True' \
+    --lr 0.004 \
+    --auto_lr 'False' \
     --log_dir 'roditest_new' \
     --out_folder 'outputs' \
     --out_prefix 'rodi_new' \
@@ -75,13 +76,14 @@ Easiest way to train all folds is to just define a simple bash script that loops
 
 Often you might first want to test training with a single fold, but for accurate results you will want to run the final model trainining with cross-validation.
 
-This training should take around 10-20 minutes with a decent GPU.
+This training should take around 5-10 minutes on a GPU.
 ```bash
 for i in {0..4}
 do
 python scripts/02_train.py \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
+    --dataset_config "conf/user_datasets.py" \
     --csv_path "data/processed/rodi/01_rodi_processed_5splits_family.csv" \
     --label "family" \
     --fold $i \
@@ -93,7 +95,7 @@ python scripts/02_train.py \
     --tta 'False' \
     --model 'resnet18' \
     --opt 'adamw' \
-    --max_epochs 5 \
+    --max_epochs 2 \
     --min_epochs 0 \
     --early_stopping 'False' \
     --early_stopping_patience 0 \
@@ -125,6 +127,7 @@ export CKPT_PATH=$(find "outputs/rodi/rodi_new_resnet18/f0/" -type f -name "rodi
 python scripts/03_predict.py \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
+    --dataset_config "conf/user_datasets.py" \
     --csv_path "data/processed/rodi/01_rodi_processed_5splits_family.csv" \
     --label "family" \
     --fold 0 \
@@ -145,6 +148,7 @@ The output folder is named, based on the augmentation used, this case 'none'. If
 python scripts/03_predict.py \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
+    --dataset_config "conf/user_datasets.py" \
     --csv_path "data/processed/rodi/01_rodi_processed_5splits_family.csv" \
     --label "family" \
     --fold 0 \
@@ -169,6 +173,7 @@ Predictions are always saved to the fold folder of `dataset_name/`
 python scripts/03_predict.py \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
+    --dataset_config "conf/user_datasets.py" \
     --csv_path "data/processed/rodi/01_rodi_processed_5splits_family.csv" \
     --label "family" \
     --fold 0 \
@@ -199,6 +204,7 @@ echo $CKPT_PATH >> ckpts_used.txt
 python scripts/03_predict.py \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
+    --dataset_config "conf/user_datasets.py" \
     --csv_path "data/processed/rodi/01_rodi_processed_5splits_family.csv" \
     --label "family" \
     --fold $i \
@@ -267,7 +273,8 @@ and grouped by individual.
 # separate
 python scripts/05_evaluate.py \
     --predictions "outputs/rodi/rodi-allfolds_resnet18/predictions/rodi-allfolds_resnet18_rodi_none.csv" \
-    --metric_config conf/eval.yaml
+    --metric_config conf/eval.yaml \
+    --no_bootstrap
 
 # grouped
 python scripts/05_evaluate.py \

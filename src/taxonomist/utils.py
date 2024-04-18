@@ -1,5 +1,7 @@
 import bisect
 import gc
+import importlib.util
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -127,6 +129,18 @@ def visualize_dataset(ds, n=8, v=True, name=None, to_numpy=False):
     else:
         img = Image.fromarray(I)
         img.save(fname)
+
+
+def load_module_from_path(fpath: str):
+    """Loads an python module from an arbitary filepath. Used for importing dataset
+    configs
+    """
+    fpath = Path(fpath)
+    spec = importlib.util.spec_from_file_location(str(fpath.stem), str(fpath))
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["module.name"] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def get_pretrained_model_details():

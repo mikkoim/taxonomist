@@ -11,8 +11,7 @@ from albumentations.pytorch.transforms import ToTensorV2
 from torchvision import transforms
 from tqdm import tqdm
 
-from .user_datasets import preprocess_dataset
-from .utils import read_image, visualize_dataset
+from .utils import load_module_from_path, read_image, visualize_dataset
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -102,12 +101,13 @@ class LitDataModule(pl.LightningDataModule):
     def __init__(
         self,
         data_folder: str,
-        dataset_name: str = "imagefolder",
+        dataset_config_path: str = None,
+        dataset_name: str = None,
         csv_path: str = None,
         fold: int = None,
         label: str = None,
-        batch_size: int = 128,
         aug: str = "only-flips",
+        batch_size: int = 128,
         imsize: int = 224,
         label_transform=None,
         load_to_memory: bool = False,
@@ -115,6 +115,7 @@ class LitDataModule(pl.LightningDataModule):
     ):
         super().__init__()
         self.data_folder = data_folder
+        self.dataset_config_path = dataset_config_path
         self.dataset_name = dataset_name
 
         self.csv_path = csv_path
@@ -138,7 +139,9 @@ class LitDataModule(pl.LightningDataModule):
         self.tf_test, self.tf_train = choose_aug(self.aug, self.aug_args)
 
     def setup(self, stage=None):
-        fnames, labels = preprocess_dataset(
+        dataset_config_module = load_module_from_path(self.dataset_config_path)
+
+        fnames, labels = dataset_config_module.preprocess_dataset(
             data_folder=self.data_folder,
             dataset_name=self.dataset_name,
             csv_path=self.csv_path,

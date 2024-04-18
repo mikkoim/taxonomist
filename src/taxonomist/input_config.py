@@ -11,6 +11,13 @@ def add_dataset_args(parser: argparse.ArgumentParser):
         required=True,
     )
     parser.add_argument(
+        "--dataset_config_path",
+        type=str,
+        help="The path to the dataset config file that defines data loading functions. "
+        "The file must contain the function 'preprocess_dataset'",
+        required=True,
+    )
+    parser.add_argument(
         "--dataset_name",
         type=str,
         help="The dataset name that is used to select the function that "

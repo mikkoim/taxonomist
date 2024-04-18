@@ -38,7 +38,8 @@ class TaxonomistModelArguments:
     lr: float = 1e-4
     auto_lr: bool = False
     early_stopping: bool = False
-    dataset_name: str = "imagefolder"
+    dataset_name: str = None
+    dataset_config_path: str = None
     pretrained: bool = True
     freeze_base: bool = False
     ckpt_path: Optional[str] = None  # required if resume=True
@@ -141,6 +142,7 @@ class TaxonomistModel:
     def _create_data_module(self, class_map):
         dm = LitDataModule(
             data_folder=self.args.data_folder,
+            dataset_config_path=self.args.dataset_config_path,
             dataset_name=self.args.dataset_name,
             csv_path=self.args.csv_path,
             fold=self.args.fold,
