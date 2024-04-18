@@ -16,9 +16,6 @@ def main(args):
     args = parser.parse_args()
 
     user_arg_dict = vars(args)
-    user_arg_dict["label_column"] = user_arg_dict.pop("label")
-    user_arg_dict["timm_model_name"] = user_arg_dict.pop("model")
-    user_arg_dict["class_map_name"] = user_arg_dict.pop("class_map")
 
     return src.TaxonomistModel(src.TaxonomistModelArguments(**user_arg_dict)).predict()
 

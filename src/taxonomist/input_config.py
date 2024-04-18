@@ -27,12 +27,13 @@ def add_dataset_args(parser: argparse.ArgumentParser):
         "cross-validation folds",
     )
     parser.add_argument(
-        "--label",
+        "--label_column",
         type=str,
         help="Label column. Found from the csv_path file.",
         default=None,
         required=False,
     )
+    parser.add_argument("--label", dest="label_column")
     parser.add_argument(
         "--fold",
         type=int,
@@ -40,7 +41,7 @@ def add_dataset_args(parser: argparse.ArgumentParser):
         required=True,
     )
     parser.add_argument(
-        "--class_map",
+        "--class_map_name",
         type=str,
         help="Refers to a list of classes found in the dataset. Provides "
         "an unambiguous reference between strings and indices, even if some folds "
@@ -48,6 +49,7 @@ def add_dataset_args(parser: argparse.ArgumentParser):
         default=None,
         required=False,
     )
+    parser.add_argument("--class_map", dest="class_map_name")
     return parser
 
 
@@ -76,8 +78,10 @@ def add_dataloader_args(parser: argparse.ArgumentParser):
 
 def add_model_args(parser: argparse.ArgumentParser):
     parser.add_argument(
-        "--model", type=str, help="The model name from the timm library"
+        "--timm_model_name", type=str, help="The model name from the timm library"
     )
+    parser.add_argument("--model", dest="timm_model_name")
+
     parser.add_argument("--criterion", type=str, help="The loss function")
     parser.add_argument(
         "--ckpt_path",
