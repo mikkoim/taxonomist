@@ -222,6 +222,13 @@ def add_train_args(parser: argparse.ArgumentParser):
         "--lr", type=float, help="Learning rate", default=None, required=False
     )
     parser.add_argument(
+        "--lr_scheduler",
+        type=str,
+        help="Learning rate scheduler.",
+        default=None,
+        required=False
+    )
+    parser.add_argument(
         "--opt",
         type=str,
         help="The optimizer name as a string",

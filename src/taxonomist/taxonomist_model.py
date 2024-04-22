@@ -54,6 +54,8 @@ class TaxonomistModelArguments:
     early_stopping_patience: int = 5  # used if early_stopping=True
     lr: float = 1e-4
     opt: str = "adam"
+    lr_scheduler: str = None
+
     auto_lr: bool = False
     precision: int = 32
     deterministic: bool = False
@@ -78,7 +80,7 @@ class TaxonomistModel:
         self.outname = f"{self.basename}_f{args.fold}_{self.uid}"
 
         if args.deterministic:
-            pl.seed_everything(seed=args.random_state)
+            pl.seed_everything(seed=args.random_state, workers=True)
 
     def _parse_uid(self):
         # It is possible to resume to an existing run that was cancelled/stopped if
@@ -162,7 +164,7 @@ class TaxonomistModel:
         )
         return dm
 
-    def _create_model(self, n_classes, class_map, ckpt=None, training=True):
+    def _create_model(self, n_classes, class_map, lr_scheduler=None, ckpt=None, training=True):
         if training:
             model = LitModule(
                 model=self.args.timm_model_name,
@@ -172,6 +174,7 @@ class TaxonomistModel:
                 opt={"name": self.args.opt},
                 n_classes=n_classes,
                 lr=self.args.lr,
+                lr_scheduler=lr_scheduler,
                 label_transform=class_map["inv"],
             )
             return model
@@ -242,6 +245,15 @@ class TaxonomistModel:
                 )
             )
         return callbacks
+    
+    def _create_lr_scheduler(self):
+        if self.args.lr_scheduler is None:
+            return None
+        
+        lr_scheduler = {"name": self.args.lr_scheduler,
+                        "T_max": self.args.max_epochs}
+        print(f"Set lr scheduler: {lr_scheduler}")
+        return lr_scheduler
 
     def _create_logger(self, model):
         wandb_resume = True if self.args.resume else None
@@ -384,8 +396,11 @@ class TaxonomistModel:
         # get data module
         dm = self._create_data_module(class_map)
 
+        # create lr scheduler
+        lr_scheduler = self._create_lr_scheduler()
+
         # get model
-        model = self._create_model(n_classes, class_map)
+        model = self._create_model(n_classes, class_map, lr_scheduler)
 
         if (not self.args.resume) and self.args.ckpt_path:
             self._load_checkpoint(model)

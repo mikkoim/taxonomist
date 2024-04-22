@@ -99,6 +99,7 @@ class LitModule(pl.LightningModule):
         criterion: str = "mse",
         opt: dict = {"name": "adam"},
         lr: float = 1e-4,
+        lr_scheduler: dict = None,
         label_transform=None,
     ):
         """Initialize the module
@@ -127,6 +128,7 @@ class LitModule(pl.LightningModule):
             n_classes=n_classes,
         )
         self.lr = lr
+        self.lr_scheduler = lr_scheduler
         self.label_transform = label_transform
         self.criterion = choose_criterion(criterion)
         self.opt_args = opt
@@ -154,11 +156,21 @@ class LitModule(pl.LightningModule):
     def configure_optimizers(self):
         """Sets optimizers based on a dict passed as argument"""
         if self.opt_args["name"] == "adam":
-            return torch.optim.Adam(self.model.parameters(), self.lr)
+            optimizer =  torch.optim.Adam(self.model.parameters(), self.lr)
         elif self.opt_args["name"] == "adamw":
-            return torch.optim.AdamW(self.model.parameters(), self.lr)
+            optimizer =  torch.optim.AdamW(self.model.parameters(), self.lr)
         else:
             raise Exception("Invalid optimizer")
+        
+        if self.lr_scheduler is not None:
+            if self.lr_scheduler["name"] != 'CosineAnnealingLR':
+                raise Exception("Invalid learning rate schedule")
+            lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,
+                                                                      self.lr_scheduler["T_max"])
+            return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
+        else:
+            return optimizer
+
 
     def common_step(self, batch, batch_idx):
         """
