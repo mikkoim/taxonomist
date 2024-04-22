@@ -23,45 +23,51 @@ from .utils import load_class_map
 
 @dataclass(frozen=True)
 class TaxonomistModelArguments:
-    timm_model_name: str
     data_folder: str
-    log_dir: str
-    class_map_name: str
-    csv_path: Optional[str]
-    label_column: Optional[str]
-    out_folder: str
-    min_epochs: Optional[int] = None
-    max_epochs: Optional[int] = None
+    dataset_config_path: str
+    dataset_name: str
+    csv_path: str
+
+    label_column: Optional[str] = None
     fold: int = 0
-    batch_size: int = 256
-    criterion: str = "mse"
-    lr: float = 1e-4
-    auto_lr: bool = False
-    early_stopping: bool = False
-    dataset_name: str = None
-    dataset_config_path: str = None
-    pretrained: bool = True
-    freeze_base: bool = False
-    ckpt_path: Optional[str] = None  # required if resume=True
+    class_map_name: str = None
+
+    imsize: int = None
+    batch_size: int = 32
+    aug: str = "none"
+    load_to_memory: bool = False
     tta: bool = False
     tta_n: int = 5
-    aug: str = "only_flips"
-    debug: bool = False
-    random_state: int = 42
-    smoke_test: bool = False
-    log_every_n_steps: Optional[int] = 10
-    opt: str = "adam"
-    load_to_memory: bool = False
+
+    timm_model_name: str = "mobilenetv3_large_100.ra_in1k"
+    criterion: str = None
+    ckpt_path: Optional[str] = None  # required if resume=True
+    freeze_base: bool = False
+    pretrained: bool = True
+    inverse_class_map: str = "same"
+    feature_extraction: str = None
+    return_logits: bool = False
+
+    min_epochs: Optional[int] = None
+    max_epochs: Optional[int] = None
+    early_stopping: bool = False
     early_stopping_patience: int = 5  # used if early_stopping=True
+    lr: float = 1e-4
+    opt: str = "adam"
+    auto_lr: bool = False
     precision: int = 32
     deterministic: bool = False
     resume: bool = False
-    inverse_class_map: str = "same"
-    suffix = None
+
+    log_dir: str = "logs"
+    out_folder: str = "outputs"
     out_prefix: str = "metrics"
-    imsize: int = None
-    feature_extraction: str = None
-    return_logits: bool = False
+    random_state: int = 42
+    debug: bool = False
+    smoke_test: bool = False
+
+    log_every_n_steps: Optional[int] = 10
+    suffix = None
 
 
 class TaxonomistModel:
@@ -375,9 +381,10 @@ class TaxonomistModel:
         # get class mapping
         class_map, n_classes = self._load_class_map()
 
-        # get
+        # get data module
         dm = self._create_data_module(class_map)
 
+        # get model
         model = self._create_model(n_classes, class_map)
 
         if (not self.args.resume) and self.args.ckpt_path:

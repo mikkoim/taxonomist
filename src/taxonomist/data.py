@@ -106,7 +106,7 @@ class LitDataModule(pl.LightningDataModule):
         csv_path: str = None,
         fold: int = None,
         label: str = None,
-        aug: str = "only-flips",
+        aug: str = "none",
         batch_size: int = 128,
         imsize: int = 224,
         label_transform=None,
