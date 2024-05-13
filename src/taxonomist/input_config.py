@@ -226,7 +226,7 @@ def add_train_args(parser: argparse.ArgumentParser):
         type=str,
         help="Learning rate scheduler.",
         default=None,
-        required=False
+        required=False,
     )
     parser.add_argument(
         "--opt",

@@ -21,12 +21,14 @@ def main(args):
     args = parser.parse_args(args)
     dataset_config_module = src.utils.load_module_from_path(args.dataset_config_path)
 
-    fpaths, labels = dataset_config_module.preprocess_dataset(data_folder=args.data_folder,
-                                                              dataset_name=args.dataset_name,
-                                                              csv_path=args.csv_path,
-                                                              fold=args.fold,
-                                                              label=args.label_column)
-    
+    fpaths, labels = dataset_config_module.preprocess_dataset(
+        data_folder=args.data_folder,
+        dataset_name=args.dataset_name,
+        csv_path=args.csv_path,
+        fold=args.fold,
+        label=args.label_column,
+    )
+
     for set_ in ["train", "val", "test"]:
         print(f"{set_}: found {len(fpaths[set_])} fpaths, {len(labels[set_])} labels")
         print("Examples:")
@@ -34,10 +36,15 @@ def main(args):
         print(labels[set_][:5])
 
         if not isinstance(fpaths[set_], (list, np.ndarray)):
-            warn(f"fpaths {set_} is not a list or a numpy array. Check that it can be indexed correctly")
+            warn(
+                f"fpaths {set_} is not a list or a numpy array. Check that it can be indexed correctly"
+            )
         if not isinstance(labels[set_], (list, np.ndarray)):
-            warn(f"labels {set_} is not a list or a numpy array. Check that it can be indexed correctly")
-    
+            warn(
+                f"labels {set_} is not a list or a numpy array. Check that it can be indexed correctly"
+            )
+
+
 if __name__ == "__main__":
     trainer = main(
         sys.argv[1:]

@@ -156,21 +156,21 @@ class LitModule(pl.LightningModule):
     def configure_optimizers(self):
         """Sets optimizers based on a dict passed as argument"""
         if self.opt_args["name"] == "adam":
-            optimizer =  torch.optim.Adam(self.model.parameters(), self.lr)
+            optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
         elif self.opt_args["name"] == "adamw":
-            optimizer =  torch.optim.AdamW(self.model.parameters(), self.lr)
+            optimizer = torch.optim.AdamW(self.model.parameters(), self.lr)
         else:
             raise Exception("Invalid optimizer")
-        
+
         if self.lr_scheduler is not None:
-            if self.lr_scheduler["name"] != 'CosineAnnealingLR':
+            if self.lr_scheduler["name"] != "CosineAnnealingLR":
                 raise Exception("Invalid learning rate schedule")
-            lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,
-                                                                      self.lr_scheduler["T_max"])
+            lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, self.lr_scheduler["T_max"]
+            )
             return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
         else:
             return optimizer
-
 
     def common_step(self, batch, batch_idx):
         """

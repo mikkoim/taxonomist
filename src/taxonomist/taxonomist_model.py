@@ -164,7 +164,9 @@ class TaxonomistModel:
         )
         return dm
 
-    def _create_model(self, n_classes, class_map, lr_scheduler=None, ckpt=None, training=True):
+    def _create_model(
+        self, n_classes, class_map, lr_scheduler=None, ckpt=None, training=True
+    ):
         if training:
             model = LitModule(
                 model=self.args.timm_model_name,
@@ -245,13 +247,12 @@ class TaxonomistModel:
                 )
             )
         return callbacks
-    
+
     def _create_lr_scheduler(self):
         if self.args.lr_scheduler is None:
             return None
-        
-        lr_scheduler = {"name": self.args.lr_scheduler,
-                        "T_max": self.args.max_epochs}
+
+        lr_scheduler = {"name": self.args.lr_scheduler, "T_max": self.args.max_epochs}
         print(f"Set lr scheduler: {lr_scheduler}")
         return lr_scheduler
 
