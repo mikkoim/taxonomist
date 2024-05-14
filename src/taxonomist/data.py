@@ -275,6 +275,41 @@ def choose_aug(aug, args):
             ]
         )
         tf_train = tf_test
+    
+    elif aug == "trivialaugment":
+        tf_test = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Resize((imsize, imsize)),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ]
+        )
+        tf_train = transforms.Compose(
+            [
+                transforms.Resize((imsize, imsize)),
+                transforms.TrivialAugmentWide(),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ]
+        )
+        
+    elif aug == "randaugment":
+        tf_test = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Resize((imsize, imsize)),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ]
+        )
+        tf_train = transforms.Compose(
+            [
+                transforms.Resize((imsize, imsize)),
+                transforms.RandAugment(),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ]
+        )
+
     elif aug == "torch-only-flips":
         tf_test = transforms.Compose(
             [
