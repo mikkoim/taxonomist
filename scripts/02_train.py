@@ -42,7 +42,7 @@ if __name__ == "__main__":
         print(f"Using checkpoint from {args.ckpt_path}")
         ckpt_name = Path(args.ckpt_path).stem
         uid = ckpt_name.split("_")[-3]
-        assert basename == "_".join(ckpt_name.split("_")[:-4])
+        assert basename == "_".join(ckpt_name.split("_")[:-5])
 
     outname = f"{basename}_f{args.fold}_{uid}"
 
@@ -74,7 +74,18 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         aug=args.aug,
         load_to_memory=args.load_to_memory,
+        class_map_path=args.class_map
     )
+
+    # Calculate class counts
+    #class_counts = dm.calculate_and_get_class_counts()
+    # Manually call setup method for 'fit' stage
+    dm.setup(stage='fit')
+
+    # Now you can directly access self.class_counts
+    class_counts = dm.class_counts
+    print(class_counts, args.fold, 22)
+
 
     opt_args = {"name": args.opt}
 
@@ -87,6 +98,7 @@ if __name__ == "__main__":
         n_classes=n_classes,
         lr=args.lr,
         label_transform=class_map["inv"],
+        class_counts=class_counts,  # Now passed here
     )
 
     # If using pretrained weights but not resuming a run
