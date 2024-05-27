@@ -1,6 +1,7 @@
 import lightning.pytorch as pl
 import timm
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from albumentations.pytorch.transforms import ToTensorV2
@@ -141,6 +142,7 @@ class LitModule(pl.LightningModule):
         self.training_step_outputs = []
         self.validation_step_outputs = []
         self.test_step_outputs = []
+        self.batch_size = None
 
     def predict_func(self, output):
         """Processes the output for prediction"""
@@ -176,10 +178,16 @@ class LitModule(pl.LightningModule):
         """
         Perform a common processing step during training, validation, or testing.
         """
-        x, y = batch
+        x = batch["x"]
+        y = batch["y"]
+        fname = batch["fname"]
         out = self.model(x)
         loss = self.criterion(out, y)
-        return x, y, out, loss
+
+        # Set the batch size for logging
+        if self.batch_size is None:
+            self.batch_size = len(x)
+        return x, y, fname, out, loss
 
     def common_epoch_end(self, outputs, name: str):
         """Combine outputs for calculating metrics at the end of an epoch."""
@@ -204,8 +212,8 @@ class LitModule(pl.LightningModule):
         """
         Execute a training step and log relevant information.
         """
-        _, y, out, loss = self.common_step(batch, batch_idx)
-        self.log("train/loss", loss, on_step=True, on_epoch=True)
+        _, y, _, out, loss = self.common_step(batch, batch_idx)
+        self.log("train/loss", loss, on_step=True, on_epoch=True, batch_size=self.batch_size)
         outputs = {"loss": loss, "y_true": y, "y_pred": self.predict_func(out)}
         self.training_step_outputs.append(outputs)
         return loss
@@ -226,8 +234,8 @@ class LitModule(pl.LightningModule):
         """
         Execute a validation step and log relevant information.
         """
-        _, y, out, val_loss = self.common_step(batch, batch_idx)
-        self.log("val/loss", val_loss, on_step=True, on_epoch=True)
+        _, y, _, out, val_loss = self.common_step(batch, batch_idx)
+        self.log("val/loss", val_loss, on_step=True, on_epoch=True, batch_size=self.batch_size)
         outputs = {"y_true": y, "y_pred": self.predict_func(out)}
         self.validation_step_outputs.append(outputs)
 
@@ -245,9 +253,9 @@ class LitModule(pl.LightningModule):
     # Testing
     def test_step(self, batch, batch_idx):
         """Execute a testing step and log relevant information."""
-        _, y, out, test_loss = self.common_step(batch, batch_idx)
-        self.log("test/loss", test_loss, on_step=True, on_epoch=True)
-        outputs = {"y_true": y, "y_pred": self.predict_func(out), "out": out}
+        _, y, fname, out, test_loss = self.common_step(batch, batch_idx)
+        self.log("test/loss", test_loss, on_step=True, on_epoch=True, batch_size=self.batch_size)
+        outputs = {"y_true": y, "y_pred": self.predict_func(out), "fname": fname, "out": out}
         self.test_step_outputs.append(outputs)
 
     def on_test_epoch_end(self):
@@ -259,6 +267,8 @@ class LitModule(pl.LightningModule):
         - Calls common_epoch_end method for additional processing.
         """
         outputs = self.test_step_outputs
+        xss = [x["fname"] for x in outputs]
+        self.fnames = np.array([x for xs in xss for x in xs])
         if self.is_classifier:
             logits = torch.cat([x["out"] for x in outputs])
             self.softmax = logits.softmax(dim=1).cpu().detach().numpy()

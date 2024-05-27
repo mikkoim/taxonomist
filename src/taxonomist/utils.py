@@ -81,7 +81,7 @@ def class_batch(ds, target, n=8):
     if len(all_inds) == 0:
         raise Exception("No label")
     inds = np.random.choice(all_inds, n)
-    x_list = [ds[i][0] for i in inds]
+    x_list = [ds[i]["x"] for i in inds]
     X = torch.stack(x_list)
     return X
 
@@ -91,7 +91,7 @@ def histogram_batch(ds, bins, b, n=8):
 
     all_inds = np.where(bins == b)[0]
     inds = np.random.choice(all_inds, n)
-    x_list = [ds[i][0] for i in inds]
+    x_list = [ds[i]["x"] for i in inds]
     X = torch.stack(x_list)
     return X
 

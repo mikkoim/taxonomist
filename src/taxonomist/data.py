@@ -63,7 +63,10 @@ class Dataset(torch.utils.data.Dataset):
             y = torch.as_tensor(self.y[index], dtype=torch.float32)
         else:
             y = None
-        return X, y
+        batch = {"x": X,
+                 "y": y,
+                 "fname": str(self.filenames[index])}
+        return batch
 
     def __readfile(self, index):
         """Actual loading of the item"""

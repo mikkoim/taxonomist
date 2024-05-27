@@ -203,6 +203,13 @@ def add_train_args(parser: argparse.ArgumentParser):
         required=False,
     )
     parser.add_argument(
+        "--save_top_k",
+        type=int,
+        help="Saves the top k best models. Default 1",
+        default=1,
+        required=False,
+    )
+    parser.add_argument(
         "--early_stopping",
         type=lambda x: bool(strtobool(x)),
         nargs="?",

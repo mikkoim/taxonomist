@@ -50,6 +50,7 @@ class TaxonomistModelArguments:
 
     min_epochs: Optional[int] = None
     max_epochs: Optional[int] = None
+    save_top_k: Optional[int] = 1
     early_stopping: bool = False
     early_stopping_patience: int = 5  # used if early_stopping=True
     lr: float = 1e-4
@@ -228,6 +229,7 @@ class TaxonomistModel:
         checkpoint_callback_best = ModelCheckpoint(
             monitor="val/loss",
             dirpath=out_folder,
+            save_top_k=self.args.save_top_k,
             filename=f"{self.outname}_" + "epoch{epoch:02d}_val-loss{val/loss:.2f}",
             auto_insert_metric_name=False,
         )
@@ -333,13 +335,14 @@ class TaxonomistModel:
         # Actual prediction
         if not self.args.tta:
             trainer.test(model, dm)
-            y_true, y_pred = model.y_true, model.y_pred
+            y_true, y_pred, fnames = model.y_true, model.y_pred, model.fnames
 
         else:
             dm.setup()
             trainer.test(model, dataloaders=dm.tta_dataloader())
             y_true = dm.tta_process(model.y_true)
             y_pred = dm.tta_process(model.y_pred)
+            fnames = dm.tta_process(model.fnames)
 
         if out_folder:
             if self.args.ckpt_path:
@@ -378,8 +381,13 @@ class TaxonomistModel:
                 else:
                     df = df_pred
 
+                # Set index to filenames
+                df.index = fnames
+                df.index.name = "fname"
+
+                # Saving
                 outname = out_stem + ".csv"
-                df.to_csv(out_folder / outname, index=False)
+                df.to_csv(out_folder / outname, index=True)
                 print(out_folder / outname)
             else:  # Outputs of feature extraction can vary depending on the pooling
                 outname = f"{out_stem}_{self.args.feature_extraction}.p"

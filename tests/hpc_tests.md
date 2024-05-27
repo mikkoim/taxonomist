@@ -5,6 +5,7 @@ allas-conf
 
 a-get 2004353-datasets/rodi_public.zip -d $TMPDIR
 unzip $TMPDIR/rodi_public.zip -d $TMPDIR
+source tykky
 
 # Basic test
 python scripts/02_train.py \
