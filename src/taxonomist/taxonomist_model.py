@@ -449,7 +449,7 @@ class TaxonomistModel:
 
         dm = self._create_data_module(class_map)
 
-        model = self._create_model(None, class_map, ckpt, training=False)
+        model = self._create_model(None, class_map=class_map, ckpt=ckpt, training=False)
 
         trainer = self._create_trainer(None, None, training=False)
 
