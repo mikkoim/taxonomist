@@ -94,8 +94,10 @@ class TaxonomistModel:
             # Parse the uid from filename
             print(f"Using checkpoint from {self.args.ckpt_path}")
             ckpt_name = Path(self.args.ckpt_path).stem
-            uid = ckpt_name.split("_")[-3]
-            assert self.basename == "_".join(ckpt_name.split("_")[:-4])
+            if not ckpt_name.endswith("_last"):
+                raise ValueError("If resume=True the checkpoint must be the last checkpoint")
+            uid = ckpt_name.split("_")[-4]
+            assert self.basename == "_".join(ckpt_name.split("_")[:-5])
         return uid
 
     def _create_out_folder(self, training=True):
