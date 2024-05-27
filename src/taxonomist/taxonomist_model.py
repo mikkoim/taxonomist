@@ -3,7 +3,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union, List
 
 import lightning.pytorch as pl
 import pandas as pd
@@ -60,9 +60,14 @@ class TaxonomistModelArguments:
     auto_lr: bool = False
     swa: bool = False
     swa_lrs: float = 1e-2
-    precision: int = 32
+    precision: Union[int, str] = 32
     deterministic: bool = False
     resume: bool = False
+
+    accelerator: str = "auto"
+    strategy: Union[str, int] = "auto"
+    devices: Union[str, int] = "auto"
+    num_nodes: int = 1
 
     log_dir: str = "logs"
     out_folder: str = "outputs"
@@ -311,12 +316,14 @@ class TaxonomistModel:
 
             # Training
             trainer = pl.Trainer(
+                accelerator=self.args.accelerator, # auto
+                strategy=self.args.strategy, # auto
+                devices=self.args.devices, # auto
+                num_nodes=self.args.num_nodes, # 1
                 max_epochs=self.args.max_epochs,
                 min_epochs=self.args.min_epochs,
                 logger=logger,
                 log_every_n_steps=10,
-                devices="auto",
-                accelerator="auto",
                 limit_train_batches=limit_train_batches,
                 limit_val_batches=limit_val_batches,
                 limit_test_batches=limit_test_batches,
@@ -461,7 +468,6 @@ class TaxonomistModel:
         return trainer
 
     def predict(self):
-        # gpu_count = torch.cuda.device_count()
 
         out_folder = self._create_out_folder(training=False)
 

@@ -291,6 +291,30 @@ def add_train_args(parser: argparse.ArgumentParser):
         default=False,
         required=False,
     )
+    parser.add_argument(
+        "--accelerator",
+        help="Lighting Trainer accelerator. Default 'auto'",
+        default="auto",
+        required=False,
+    )
+    parser.add_argument(
+        "--strategy",
+        help="Lighting Trainer training strategy, for example 'ddp'. Default 'auto'.",
+        default="auto",
+        required=False,
+    )
+    parser.add_argument(
+        "--devices",
+        help="Lightning Trainer devices to use. Default 'auto'",
+        default="auto",
+        required=False,
+    )
+    parser.add_argument(
+        "--num_nodes",
+        help="Number of GPU nodes for distributed training. Default 1.",
+        default=1,
+        required=False,
+    )
     return parser
 
 
