@@ -292,6 +292,23 @@ def choose_aug(aug, args):
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             ]
         )
+
+    elif aug == "trivialaugment-noresize":
+        # No resizing during training. Assumes images are the right size
+        tf_test = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Resize((imsize, imsize)),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ]
+        )
+        tf_train = transforms.Compose(
+            [
+                transforms.TrivialAugmentWide(),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ]
+        )
         
     elif aug == "randaugment":
         tf_test = transforms.Compose(
