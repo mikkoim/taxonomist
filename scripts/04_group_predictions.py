@@ -42,6 +42,12 @@ if __name__ == "__main__":
     # Check that reference matches
     ref_a = ref_df[args.reference_target]
     ref_b = df.y_true
+    if len(ref_a) != len(ref_b):
+        raise ValueError(
+            "Predictions and reference sizes dont match. "
+            f"Reference size is {len(ref_a)} and prediction size is {len(ref_b)}."
+        )
+
     try:
         if not np.allclose(ref_a, ref_b):
             raise ValueError("Reference column does not match ground truth.")
