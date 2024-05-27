@@ -51,7 +51,7 @@ python scripts/02_train.py \
     --class_map "data/processed/rodi/rodi_label_map.txt" \
     --imsize 224 \
     --batch_size 256 \
-    --aug 'aug-02' \
+    --aug 'trivialaugment' \
     --load_to_memory 'False' \
     --model 'resnet18' \
     --opt 'adamw' \
@@ -90,7 +90,7 @@ python scripts/02_train.py \
     --class_map "data/processed/rodi/rodi_label_map.txt" \
     --imsize 224 \
     --batch_size 256 \
-    --aug 'aug-02' \
+    --aug 'trivialaugment' \
     --load_to_memory 'False' \
     --tta 'False' \
     --model 'resnet18' \
@@ -300,7 +300,7 @@ python scripts/05_evaluate.py \
 ## 10. Comparison
 
 taxonomist makes it easy to compare metrics in different experiments.
-Sometimes results are ran with a model and dataset combination, maybe with a specific grouping or a target label. The comparison script makes it possible to re-use metrics in different comparison scenarios, for example if it is wanted to name models differently for tables or figures.
+Sometimes results are ran with a model and dataset combination, maybe with a specific grouping or a target label. The comparison script makes it possible to re-use predictions and metrics in different comparison scenarios, for example if one wants to name models differently for tables or figures.
 
 ```bash
 python scripts/06_compare.py \

@@ -213,7 +213,9 @@ class LitModule(pl.LightningModule):
         Execute a training step and log relevant information.
         """
         _, y, _, out, loss = self.common_step(batch, batch_idx)
-        self.log("train/loss", loss, on_step=True, on_epoch=True, batch_size=self.batch_size)
+        self.log(
+            "train/loss", loss, on_step=True, on_epoch=True, batch_size=self.batch_size
+        )
         outputs = {"loss": loss, "y_true": y, "y_pred": self.predict_func(out)}
         self.training_step_outputs.append(outputs)
         return loss
@@ -235,7 +237,13 @@ class LitModule(pl.LightningModule):
         Execute a validation step and log relevant information.
         """
         _, y, _, out, val_loss = self.common_step(batch, batch_idx)
-        self.log("val/loss", val_loss, on_step=True, on_epoch=True, batch_size=self.batch_size)
+        self.log(
+            "val/loss",
+            val_loss,
+            on_step=True,
+            on_epoch=True,
+            batch_size=self.batch_size,
+        )
         outputs = {"y_true": y, "y_pred": self.predict_func(out)}
         self.validation_step_outputs.append(outputs)
 
@@ -254,8 +262,19 @@ class LitModule(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         """Execute a testing step and log relevant information."""
         _, y, fname, out, test_loss = self.common_step(batch, batch_idx)
-        self.log("test/loss", test_loss, on_step=True, on_epoch=True, batch_size=self.batch_size)
-        outputs = {"y_true": y, "y_pred": self.predict_func(out), "fname": fname, "out": out}
+        self.log(
+            "test/loss",
+            test_loss,
+            on_step=True,
+            on_epoch=True,
+            batch_size=self.batch_size,
+        )
+        outputs = {
+            "y_true": y,
+            "y_pred": self.predict_func(out),
+            "fname": fname,
+            "out": out,
+        }
         self.test_step_outputs.append(outputs)
 
     def on_test_epoch_end(self):

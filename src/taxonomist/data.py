@@ -63,9 +63,7 @@ class Dataset(torch.utils.data.Dataset):
             y = torch.as_tensor(self.y[index], dtype=torch.float32)
         else:
             y = None
-        batch = {"x": X,
-                 "y": y,
-                 "fname": str(self.filenames[index])}
+        batch = {"x": X, "y": y, "fname": str(self.filenames[index])}
         return batch
 
     def __readfile(self, index):
@@ -278,7 +276,7 @@ def choose_aug(aug, args):
             ]
         )
         tf_train = tf_test
-    
+
     elif aug == "trivialaugment":
         tf_test = transforms.Compose(
             [
@@ -312,7 +310,7 @@ def choose_aug(aug, args):
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             ]
         )
-        
+
     elif aug == "randaugment":
         tf_test = transforms.Compose(
             [
