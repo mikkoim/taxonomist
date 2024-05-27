@@ -9,7 +9,7 @@ import lightning.pytorch as pl
 import pandas as pd
 import torch
 import yaml
-from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
+from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint, StochasticWeightAveraging
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.tuner import Tuner
@@ -58,6 +58,8 @@ class TaxonomistModelArguments:
     lr_scheduler: str = None
 
     auto_lr: bool = False
+    swa: bool = False
+    swa_lrs: float = 1e-2
     precision: int = 32
     deterministic: bool = False
     resume: bool = False
@@ -227,7 +229,7 @@ class TaxonomistModel:
         model.load_state_dict(ckpt["state_dict"])
 
     def _create_callbacks(self, out_folder):
-        # Training callbacks
+        # Best model saving
         checkpoint_callback_best = ModelCheckpoint(
             monitor="val/loss",
             dirpath=out_folder,
@@ -235,6 +237,8 @@ class TaxonomistModel:
             filename=f"{self.outname}_" + "epoch{epoch:02d}_val-loss{val/loss:.2f}",
             auto_insert_metric_name=False,
         )
+
+        # Last model saving
         checkpoint_callback_last = ModelCheckpoint(
             monitor="epoch",
             mode="max",
@@ -244,13 +248,24 @@ class TaxonomistModel:
             auto_insert_metric_name=False,
         )
 
+        # Learning rate monitoring
         lr_monitor = LearningRateMonitor(logging_interval="step")
         callbacks = [checkpoint_callback_best, checkpoint_callback_last, lr_monitor]
+
+        # Optional callbacks
+
+        # Early stopping
         if self.args.early_stopping:
+            print(f"Using early stopping with patience {self.args.early_stopping_patience}")
             callbacks.append(
                 EarlyStopping(
                     monitor="val/loss", patience=self.args.early_stopping_patience
                 )
+            )
+        if self.args.swa:
+            print(f"Using Stochastic Weight Averaging with learning rate {self.args.swa_lrs}")
+            callbacks.append(
+                StochasticWeightAveraging(swa_lrs=self.args.swa_lrs)
             )
         return callbacks
 

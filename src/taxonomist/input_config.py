@@ -252,6 +252,22 @@ def add_train_args(parser: argparse.ArgumentParser):
         required=False,
     )
     parser.add_argument(
+        "--swa",
+        type=lambda x: bool(strtobool(x)),
+        nargs="?",
+        const=True,
+        help="Whether to use Stochastic Weight Averaging during training. Default False",
+        default=False,
+        required=False,
+    )
+    parser.add_argument(
+        "--swa_lrs",
+        type=float,
+        help="The SWA learning rate to use",
+        default=1e-2,
+        required=False
+    )
+    parser.add_argument(
         "--precision",
         help="The precision that is passed to lightning trained",
         default=32,
