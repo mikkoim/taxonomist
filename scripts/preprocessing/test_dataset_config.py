@@ -2,6 +2,7 @@ import argparse
 import sys
 from warnings import warn
 import taxonomist as src
+import numpy as np
 
 DESCRIPTION = """
 Tests that the data loading function in the config file works as intended
