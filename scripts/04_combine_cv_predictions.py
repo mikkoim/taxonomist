@@ -38,6 +38,11 @@ if __name__ == "__main__":
     idx_list = []
     for fold in range(args.start_fold, args.start_fold + args.n_folds):
         pred_folder = model_folder / f"f{fold}" / "predictions" / f"{args.tag}"
+        if not pred_folder.exists():
+            raise ValueError(
+                f"The path {pred_folder} does not exist. Check fold `{fold}` and tag `{args.tag}`"
+            )
+
         csvs_in_folder = list(pred_folder.glob(f"*{args.suffix}"))
         if len(csvs_in_folder) != 1:
             raise ValueError(
