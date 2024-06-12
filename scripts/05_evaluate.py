@@ -32,9 +32,7 @@ def load_metric(metric):
         return sklearn.metrics.mean_squared_error
 
     elif metric == "rmse":
-        return lambda y, yhat: sklearn.metrics.mean_squared_error(
-            y, yhat, squared=False
-        )
+        return sklearn.metrics.root_mean_squared_error
 
     elif metric == "mae":
         return sklearn.metrics.mean_absolute_error
@@ -126,10 +124,12 @@ def calc_bootstrap(df, n_repeats, alpha=0.95):
     bs_errors = {}
     for metric in conf.metrics:
         # err = np.quantile(np.abs(values[metric] - bs_values.query("metric==@metric")['value'].values), alpha)
-        err = np.quantile(
-            bs_values.query("metric==@metric")["value"].values, [1 - alpha, alpha]
-        )
-        bs_errors[metric] = err
+        values = bs_values.query("metric==@metric")["value"].values
+        q_err = np.quantile(values, [1 - alpha, alpha])
+        std = np.std(values)
+        bs_errors[metric] = {}
+        bs_errors[metric]["q"] = q_err
+        bs_errors[metric]["std"] = std
 
     return bs_errors, bs_values
 
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     parser.add_argument("--reference_target", default=None, type=str)
     parser.add_argument("--n_folds", type=int, default=5)
     parser.add_argument("--no_bootstrap", action="store_true")
-    parser.add_argument("--n_bootstrap", default=1000)
+    parser.add_argument("--n_bootstrap", type=int, default=1000)
     parser.add_argument("--bootstrap_alpha", default=0.95)
     parser.add_argument("--no_save", action="store_true")
     parser.add_argument("--out_prefix", type=str, default="metrics")
@@ -179,8 +179,9 @@ if __name__ == "__main__":
         row["metric"] = metric
         row["value"] = values[metric]
         if not args.no_bootstrap:
-            row["q_l"] = bs_errors[metric][0]
-            row["q_u"] = bs_errors[metric][1]
+            row["q_l"] = bs_errors[metric]["q"][0]
+            row["q_u"] = bs_errors[metric]["q"][1]
+            row["std"] = bs_errors[metric]["std"]
             assert row["q_l"] <= row["value"]
             assert row["value"] <= row["q_u"]
         row_list.append(row)
@@ -208,8 +209,9 @@ if __name__ == "__main__":
                 row["metric"] = metric
                 row["value"] = values[metric]
                 if not args.no_bootstrap:
-                    row["q_l"] = bs_errors[metric][0]
-                    row["q_u"] = bs_errors[metric][1]
+                    row["q_l"] = bs_errors[metric]["q"][0]
+                    row["q_u"] = bs_errors[metric]["q"][1]
+                    row["std"] = bs_errors[metric]["std"]
                     assert row["q_l"] <= row["value"]
                     assert row["value"] <= row["q_u"]
                 row_list.append(row)
@@ -223,6 +225,7 @@ if __name__ == "__main__":
         if not args.no_bootstrap:
             results["q_l"] = results["q_l"].apply(lambda x: np.around(x, args.around))
             results["q_u"] = results["q_u"].apply(lambda x: np.around(x, args.around))
+            results["std"] = results["std"].apply(lambda x: np.around(x, args.around))
 
     if not args.no_save:
         csv_stem = csv_path.stem

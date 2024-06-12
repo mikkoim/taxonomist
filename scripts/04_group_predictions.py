@@ -8,6 +8,12 @@ DESCRIPTION = """
 Performs aggregation to predictions, based on a group variable in the original dataset.
 """
 
+def quantile_mean(series):
+    """Returns the mean after values outside the 5th and 95th percentile are removed"""
+    q5 = series.quantile(0.05)
+    q95 = series.quantile(0.95)
+    return series[(q5 <= series) & (series <= q95)].mean()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
@@ -66,6 +72,9 @@ if __name__ == "__main__":
 
         def agg_func(x):
             return pd.Series.mode(x)[0]
+
+    if args.agg_func == "quantile_mean":
+        agg_func = quantile_mean
 
     else:
         agg_func = args.agg_func
