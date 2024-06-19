@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+from distutils.util import strtobool
 
 import pandas as pd
 from sklearn.model_selection import GroupKFold, StratifiedGroupKFold
@@ -70,6 +71,15 @@ if __name__ == "__main__":
         help="The random seed for the split. Default is 42",
         default=42,
     )
+    parser.add_argument(
+        "--shuffle",
+        type=lambda x: bool(strtobool(x)),
+        help="Whether to shuffle each class's samples before splitting into batches.",
+        nargs="?",
+        const=True,
+        default=True,
+        required=False,
+    )
 
     parser.add_argument("--out_folder", type=str, default=".")
 
@@ -83,8 +93,9 @@ if __name__ == "__main__":
 
     # Splits
     try:
+        random_state = args.random_state if args.shuffle else None
         cv = StratifiedGroupKFold(
-            n_splits=args.n_splits, shuffle=True, random_state=args.random_state
+            n_splits=args.n_splits, shuffle=args.shuffle, random_state=random_state
         )
 
         # Try to calculate the splits for exception catchment
