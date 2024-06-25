@@ -403,6 +403,25 @@ def choose_aug(aug, args):
         transform_test = A.Compose([keep_aspect_resize, a_end_tf])
         tf_test = lambda x: transform_test(image=np.array(x))["image"]
         tf_train = tf_test
+    
+    elif aug == "flips-cont-rotate":
+        transform_test = A.Compose(
+            [
+                A.Resize(imsize, imsize, p=1.0),
+                a_end_tf,
+            ]
+        )
+        transform_train = A.Compose(
+            [
+                A.Resize(imsize, imsize, p=1.0),
+                A.Flip(),
+                A.RandomRotate90(p=1.0),
+                A.Rotate(p=0.5, border_mode=0),
+                a_end_tf,
+            ]
+        )
+        tf_test = lambda x: transform_test(image=np.array(x))["image"]
+        tf_train = lambda x: transform_train(image=np.array(x))["image"]
 
     elif aug.startswith("flips"):
         keep_aspect = "keep-aspect" in aug
