@@ -72,8 +72,7 @@ if __name__ == "__main__":
 
         def agg_func(x):
             return pd.Series.mode(x)[0]
-
-    if args.agg_func == "quantile_mean":
+    elif args.agg_func == "quantile_mean":
         agg_func = quantile_mean
 
     else:
@@ -84,7 +83,10 @@ if __name__ == "__main__":
 
     if args.around:
         print(f"Rounding values to {args.around} decimals")
-        group_df = group_df.map(lambda x: np.around(x, args.around))
+        try:
+            group_df = group_df.map(lambda x: np.around(x, args.around))
+        except np.core._exceptions._UFuncNoLoopError:
+            raise Exception("Can't round values. Only regression tasks can be rounded")
 
     out_name = out_folder / f"{csv_stem}_grouped.csv"
     group_df.to_csv(out_name)
