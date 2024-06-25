@@ -1,5 +1,6 @@
 import pickle
 import uuid
+import gzip
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -357,6 +358,7 @@ class TaxonomistModel:
 
     def _predict(self, trainer, model, dm, class_map, n_classes, out_folder=None):
         # Actual prediction
+        df = None
         if not self.args.tta:
             trainer.test(model, dm)
             y_true, y_pred, fnames = model.y_true, model.y_pred, model.fnames
@@ -414,9 +416,9 @@ class TaxonomistModel:
                 df.to_csv(out_folder / outname, index=True)
                 print(out_folder / outname)
             else:  # Outputs of feature extraction can vary depending on the pooling
-                outname = f"{out_stem}_{self.args.feature_extraction}.p"
-                with open(out_folder / outname, "wb") as f:
-                    pickle.dump({"y_true": y_true, "features": y_pred}, f)
+                outname = f"{out_stem}_{self.args.feature_extraction}.p.gz"
+                with gzip.open(out_folder / outname, "wb") as f:
+                    pickle.dump({"fname": fnames, "y_true": y_true, "features": y_pred}, f)
                 print(out_folder / outname)
 
         return df

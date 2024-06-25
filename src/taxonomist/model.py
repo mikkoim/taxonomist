@@ -306,6 +306,7 @@ class FeatureExtractionModule(pl.LightningModule):
         criterion: str = "cross-entropy",
         opt: dict = {"name": "adam"},
         lr: float = 1e-4,
+        lr_scheduler: dict = None,
         label_transform=None,
     ):
         """
@@ -343,9 +344,12 @@ class FeatureExtractionModule(pl.LightningModule):
             )
 
     def test_step(self, batch, batch_idx):
-        bx, by = batch
+        bx = batch["x"]
+        by = batch["y"]
+        fname = batch["fname"]
         out = self.forward(bx)
         outputs = {
+            "fname": fname,
             "y_true": by.cpu().detach().numpy(),
             "out": out.cpu().detach().numpy(),
         }
@@ -355,3 +359,4 @@ class FeatureExtractionModule(pl.LightningModule):
         outputs = self.test_step_outputs
         self.y_true = [x["y_true"] for x in outputs]
         self.y_pred = [x["out"] for x in outputs]
+        self.fnames = [x["fname"] for x in outputs]
