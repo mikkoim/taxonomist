@@ -226,6 +226,20 @@ def add_train_args(parser: argparse.ArgumentParser):
         required=False,
     )
     parser.add_argument(
+        "--log_every_n_steps",
+        type=int,
+        help="How often to add logging rows",
+        default=10,
+        required=False,
+    )
+    parser.add_argument(
+        "--check_val_every_n_epoch",
+        type=int,
+        help="Check val every n train epochs.",
+        default=1,
+        required=False,
+    )
+    parser.add_argument(
         "--lr", type=float, help="Learning rate", default=None, required=False
     )
     parser.add_argument(

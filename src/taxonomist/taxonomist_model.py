@@ -78,6 +78,7 @@ class TaxonomistModelArguments:
     smoke_test: bool = False
 
     log_every_n_steps: Optional[int] = 10
+    check_val_every_n_epoch: Optional[int] = 1
     suffix = None
 
 
@@ -297,6 +298,7 @@ class TaxonomistModel:
         logger.watch(model)
         wandb.init()
         wandb.config.update(self.args, allow_val_change=True)
+        wandb.config.update({"basename": self.basename})
         # logger = TensorBoardLogger(args.log_dir,
         #                            name=basename,
         #                            version=uid)
@@ -324,7 +326,8 @@ class TaxonomistModel:
                 max_epochs=self.args.max_epochs,
                 min_epochs=self.args.min_epochs,
                 logger=logger,
-                log_every_n_steps=10,
+                log_every_n_steps=self.args.log_every_n_steps,
+                check_val_every_n_epoch=self.args.check_val_every_n_epoch,
                 limit_train_batches=limit_train_batches,
                 limit_val_batches=limit_val_batches,
                 limit_test_batches=limit_test_batches,
