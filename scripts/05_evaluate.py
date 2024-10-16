@@ -49,7 +49,7 @@ def load_metric(metric):
     elif metric == "log-r2":
 
         def logr2(y, yhat):
-            if np.any(df.y_pred < 0):
+            if np.any(yhat < 0):
                 return 0
             else:
                 return sklearn.metrics.r2_score(np.log(y), np.log(yhat))
@@ -100,20 +100,20 @@ def load_metric(metric):
         )
 
 
-def calc_metrics(df):
+def calc_metrics(df, metrics):
     values = {}
-    for metric in conf.metrics:
+    for metric in metrics:
         func = load_metric(metric)
         values[metric] = func(df.y_true, df.y_pred)
     return values
 
 
-def calc_bootstrap(df, n_repeats, alpha=0.95):
+def calc_bootstrap(df, metrics, n_repeats, alpha=0.95):
     """Test set bootstrapping"""
 
     def _bootstrap(df):
         bs = df.sample(n=len(df), replace=True)
-        return calc_metrics(bs)
+        return calc_metrics(bs, metrics)
 
     bs_value_list = Parallel(n_jobs=4)(
         delayed(_bootstrap)(df) for _ in tqdm(range(n_repeats))
@@ -160,10 +160,13 @@ if __name__ == "__main__":
 
     # Load predictions and calculate metrics
     df = pd.read_csv(csv_path)
-    values = calc_metrics(df)
+    values = calc_metrics(df, conf.metrics)
     if not args.no_bootstrap:
         bs_errors, bs_values = calc_bootstrap(
-            df, args.n_bootstrap, args.bootstrap_alpha
+            df=df,
+            metrics=conf.metrics,
+            n_repeats=args.n_bootstrap,
+            alpha=args.bootstrap_alpha
         )
     else:
         bs_errors = None
@@ -198,10 +201,13 @@ if __name__ == "__main__":
             idx = ref_df[ref_df[str(fold)] == "test"].index.values
             df_fold = df.iloc[idx]
 
-            values = calc_metrics(df_fold)
+            values = calc_metrics(df_fold, conf.metrics)
             if not args.no_bootstrap:
                 bs_errors, _ = calc_bootstrap(
-                    df_fold, args.n_bootstrap, args.bootstrap_alpha
+                    df=df_fold,
+                    metrics=conf.metrics,
+                    n_repeats=args.n_bootstrap,
+                    alpha=args.bootstrap_alpha
                 )
             for metric in conf.metrics:
                 row = {}

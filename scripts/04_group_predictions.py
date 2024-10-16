@@ -10,6 +10,8 @@ Performs aggregation to predictions, based on a group variable in the original d
 
 def quantile_mean(series):
     """Returns the mean after values outside the 5th and 95th percentile are removed"""
+    if len(series) == 2:
+        return series.mean()
     q5 = series.quantile(0.05)
     q95 = series.quantile(0.95)
     return series[(q5 <= series) & (series <= q95)].mean()
