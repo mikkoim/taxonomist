@@ -437,6 +437,8 @@ class TaxonomistModel:
 
         # get data module
         dm = self._create_data_module(class_map)
+        dm.setup()
+        dm.visualize_datasets(out_folder / f"aug-{self.args.aug}-{self.uid}")
 
         # create lr scheduler
         lr_scheduler = self._create_lr_scheduler()
@@ -466,8 +468,6 @@ class TaxonomistModel:
             self._save_config(out_folder, self.uid)
 
         self._perform_training(trainer, model, dm, resume_ckpt)
-
-        dm.visualize_datasets(out_folder / f"aug-{self.args.aug}-{self.uid}")
 
         print(
             f"Best model: {callbacks[0].best_model_path} | score: {callbacks[0].best_model_score}"
