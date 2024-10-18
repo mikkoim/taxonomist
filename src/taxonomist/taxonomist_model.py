@@ -79,6 +79,7 @@ class TaxonomistModelArguments:
 
     log_every_n_steps: Optional[int] = 10
     check_val_every_n_epoch: Optional[int] = 1
+    val_check_interval: Optional[float] = 1.0
     suffix = None
 
 
@@ -328,6 +329,7 @@ class TaxonomistModel:
                 logger=logger,
                 log_every_n_steps=self.args.log_every_n_steps,
                 check_val_every_n_epoch=self.args.check_val_every_n_epoch,
+                val_check_interval=self.args.val_check_interval,
                 limit_train_batches=limit_train_batches,
                 limit_val_batches=limit_val_batches,
                 limit_test_batches=limit_test_batches,

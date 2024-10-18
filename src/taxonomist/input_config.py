@@ -240,6 +240,13 @@ def add_train_args(parser: argparse.ArgumentParser):
         required=False,
     )
     parser.add_argument(
+        "--val_check_interval",
+        type=float,
+        help="How often within one training epoch to check the validation set. Can specify as float or int. (from Lightning)",
+        default=1.0,
+        required=False,
+    )
+    parser.add_argument(
         "--lr", type=float, help="Learning rate", default=None, required=False
     )
     parser.add_argument(
