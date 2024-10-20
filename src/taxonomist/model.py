@@ -191,8 +191,8 @@ class LitModule(pl.LightningModule):
 
     def common_epoch_end(self, outputs, name: str):
         """Combine outputs for calculating metrics at the end of an epoch."""
-        y_true = torch.cat([x["y_true"] for x in outputs]).cpu().detach().numpy()
-        y_pred = torch.cat([x["y_pred"] for x in outputs]).cpu().detach().numpy()
+        y_true = torch.cat([x["y_true"] for x in outputs]).cpu().detach().float().numpy()
+        y_pred = torch.cat([x["y_pred"] for x in outputs]).cpu().detach().float().numpy()
 
         if self.label_transform:
             y_true = self.label_transform(y_true)
@@ -290,8 +290,8 @@ class LitModule(pl.LightningModule):
         self.fnames = np.array([x for xs in xss for x in xs])
         if self.is_classifier:
             logits = torch.cat([x["out"] for x in outputs])
-            self.softmax = logits.softmax(dim=1).cpu().detach().numpy()
-            self.logits = logits.cpu().detach().numpy()
+            self.softmax = logits.softmax(dim=1).cpu().detach().float().numpy()
+            self.logits = logits.cpu().detach().float().numpy()
         self.y_true, self.y_pred = self.common_epoch_end(outputs, "test")
 
 
@@ -350,8 +350,8 @@ class FeatureExtractionModule(pl.LightningModule):
         out = self.forward(bx)
         outputs = {
             "fname": fname,
-            "y_true": by.cpu().detach().numpy(),
-            "out": out.cpu().detach().numpy(),
+            "y_true": by.cpu().detach().float().numpy(),
+            "out": out.cpu().detach().float().numpy(),
         }
         self.test_step_outputs.append(outputs)
 

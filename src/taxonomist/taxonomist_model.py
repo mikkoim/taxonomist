@@ -287,7 +287,7 @@ class TaxonomistModel:
 
     def _create_logger(self, model):
         wandb_resume = True if self.args.resume else None
-        print(wandb_resume)
+        print(f"wandb_resume: {wandb_resume}")
         logger = WandbLogger(
             project=self.args.log_dir,
             name=self.outname,
