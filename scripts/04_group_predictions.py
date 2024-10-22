@@ -16,6 +16,14 @@ def quantile_mean(series):
     q95 = series.quantile(0.95)
     return series[(q5 <= series) & (series <= q95)].mean()
 
+def read_table(fpath):
+    if (fpath.endswith(".csv")) or (fpath.endswith(".csv.zip")):
+        return pd.read_csv(fpath)
+    elif (fpath.endswith(".parquet")) or (fpath.endswith(".parquet.gzip")):
+        return pd.read_parquet(fpath)
+    else:
+        raise ValueError("File extension not supported")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
@@ -23,6 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--reference_csv", type=str)
     parser.add_argument("--reference_target", type=str)
     parser.add_argument("--fold", type=int)
+    parser.add_argument("--fold_col_prefix", type=str, default="")
     parser.add_argument("--set", type=str, default="test")
     parser.add_argument("--reference_group", type=str)
     parser.add_argument("--agg_func", type=str)
@@ -36,8 +45,8 @@ if __name__ == "__main__":
 
     csv_stem = Path(args.predictions).stem
 
-    df = pd.read_csv(args.predictions)
-    ref_df = pd.read_csv(args.reference_csv)
+    df = read_table(args.predictions)
+    ref_df = read_table(args.reference_csv)
 
     if len(ref_df) != len(df):
         if args.fold is None:
@@ -45,7 +54,7 @@ if __name__ == "__main__":
                 "Predictions and reference don't match."
                 " Set a fold parameter if grouping a single fold"
             )
-        ref_df = ref_df[ref_df[str(args.fold)] == args.set].reset_index(drop=True)
+        ref_df = ref_df[ref_df[f"{args.fold_col_prefix}{str(args.fold)}"] == args.set].reset_index(drop=True)
 
     # Check that reference matches
     ref_a = ref_df[args.reference_target]

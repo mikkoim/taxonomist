@@ -30,6 +30,8 @@ if __name__ == "__main__":
         individual=df["Sample Name/Number"].apply(lambda x: x.split("_")[:-1][0])
     )
 
+    pd.Series(df["Species Name"].unique()).sort_values().to_csv(out_folder / "class_map.txt", index=False, header=False)
+
     out_fname = out_folder / "01_biodiscover_processed.csv"
     df.to_csv(out_fname, index=False)
     print(out_fname)
