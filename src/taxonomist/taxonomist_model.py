@@ -234,7 +234,15 @@ class TaxonomistModel:
             self.args.ckpt_path,
             map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
         )
-        model.load_state_dict(ckpt["state_dict"])
+        try:
+            model.load_state_dict(ckpt["state_dict"])
+        except RuntimeError:
+            print("Checkpoint and model parameters don't match. Loading without last layer")
+            model = LitModule(**ckpt["hyper_parameters"])
+            model.load_state_dict(ckpt["state_dict"], strict=False)
+            if self.args.freeze_base:
+                model.model.freeze_base()
+            model.model.init_proj_head(self.n_classes)
 
     def _create_callbacks(self, out_folder):
         # Best model saving
@@ -434,6 +442,7 @@ class TaxonomistModel:
 
         # get class mapping
         class_map, n_classes = self._load_class_map()
+        self.n_classes = n_classes
 
         # get data module
         dm = self._create_data_module(class_map)

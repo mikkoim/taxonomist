@@ -72,10 +72,17 @@ class Model(nn.Module):
         self.base_model = timm.create_model(model, num_classes=0, pretrained=pretrained)
 
         if freeze_base:
-            for param in self.base_model.parameters():
-                param.requires_grad = False
+            self.freeze_base()
 
+        self.init_proj_head(n_classes)
+    
+    def init_proj_head(self, n_classes):
         self.proj_head = nn.Sequential(nn.Linear(self.h_dim, n_classes))
+    
+    def freeze_base(self):
+        for param in self.base_model.parameters():
+            param.requires_grad = False
+        print("Base model frozen")
 
     def forward(self, x):
         h = self.base_model(x)
