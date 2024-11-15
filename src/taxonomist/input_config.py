@@ -333,6 +333,7 @@ def add_train_args(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--num_nodes",
         help="Number of GPU nodes for distributed training. Default 1.",
+        type=int,
         default=1,
         required=False,
     )
