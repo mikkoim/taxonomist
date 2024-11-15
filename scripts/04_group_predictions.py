@@ -24,6 +24,30 @@ def read_table(fpath):
     else:
         raise ValueError("File extension not supported")
 
+def group_preds(comb_df, args):
+    group_df = comb_df.groupby(args.reference_group)[["y_true", "y_pred"]]
+
+    if args.agg_func == "mode":
+
+        def agg_func(x):
+            return pd.Series.mode(x)[0]
+    elif args.agg_func == "quantile_mean":
+        agg_func = quantile_mean
+
+    else:
+        agg_func = args.agg_func
+
+    group_df = group_df.agg(agg_func)
+    return group_df
+
+def group_logits(comb_df, cols, args):
+    y_true = comb_df.groupby(args.reference_group)["y_true"].first()
+    group_df = comb_df.groupby(args.reference_group)[cols]
+    y_scores = group_df.agg(args.agg_func)
+    y_pred = y_scores.idxmax(axis=1).rename("y_pred")
+    group_df = pd.concat([y_true, y_pred, y_scores], axis=1)
+    return group_df
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
@@ -35,6 +59,8 @@ if __name__ == "__main__":
     parser.add_argument("--set", type=str, default="test")
     parser.add_argument("--reference_group", type=str)
     parser.add_argument("--agg_func", type=str)
+    parser.add_argument("--suffix", default="", type=str)
+    parser.add_argument("--group_logits", action="store_true")
     parser.add_argument(
         "--around", type=int, help="Round the output. Only on regression"
     )
@@ -76,20 +102,12 @@ if __name__ == "__main__":
     # Combine predictions and reference
     comb_df = pd.concat((df, ref_df), axis=1)
 
-    # Grouping
-    group_df = comb_df.groupby(args.reference_group)[["y_true", "y_pred"]]
-
-    if args.agg_func == "mode":
-
-        def agg_func(x):
-            return pd.Series.mode(x)[0]
-    elif args.agg_func == "quantile_mean":
-        agg_func = quantile_mean
-
+    if args.group_logits:
+        group_df = group_logits(comb_df, df.columns[3:], args)
     else:
-        agg_func = args.agg_func
+        group_df = group_preds(comb_df, args)
 
-    group_df = group_df.agg(agg_func)
+    # Grouping
     print(f"Grouped {len(df)} rows to {len(group_df)} groups")
 
     if args.around:
@@ -99,6 +117,6 @@ if __name__ == "__main__":
         except np.core._exceptions._UFuncNoLoopError:
             raise Exception("Can't round values. Only regression tasks can be rounded")
 
-    out_name = out_folder / f"{csv_stem}_grouped.csv"
+    out_name = out_folder / f"{csv_stem}_grouped{args.suffix}.csv"
     group_df.to_csv(out_name)
     print(f"Saved to {out_name}")
