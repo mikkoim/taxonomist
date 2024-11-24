@@ -1,14 +1,14 @@
 #!/bin/bash
-#SBATCH --job-name=eb0
+#SBATCH --job-name=010203
 #SBATCH --account=Project_2004353
 #SBATCH --partition=gpu
-#SBATCH --time=12:00:00
+#SBATCH --time=14:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=32G
 #SBATCH --gres=gpu:v100:1,nvme:64
-#SBATCH -o "o_eb0.txt"
-#SBATCH -e "e_eb0.txt"
+#SBATCH -o "o_01_02_03_lrsched_cont_cont.txt"
+#SBATCH -e "e_01_02_03_lrsched_cont_cont.txt"
 
 # This batchjob trains an initial model from scratch
 
@@ -22,7 +22,7 @@ srun python scripts/02_train.py \
                 --dataset_name "finbenthic2" \
                 --csv_path "data/processed/finbenthic2/01_finbenthic2_processed_5splits_taxon.csv" \
                 --label "taxon" \
-                --fold 1 \
+                --fold 0 \
                 --class_map "data/processed/finbenthic2/label_map_01_taxon.txt" \
                 --imsize 224 \
                 --batch_size 256 \
@@ -32,14 +32,16 @@ srun python scripts/02_train.py \
                 --freeze_base 'False' \
                 --pretrained 'True' \
                 --opt 'adamw' \
+                --lr_scheduler 'CosineAnnealingLR' \
                 --max_epochs 200 \
                 --min_epochs 5 \
-                --early_stopping 'True' \
+                --early_stopping 'False' \
                 --early_stopping_patience 50 \
                 --criterion 'cross-entropy' \
-                --lr 0.0001 \
-                --auto_lr 'True' \
-                --log_dir 'benthic-models' \
+                --lr 0.0000229 \
+                --auto_lr 'False' \
+                --log_dir 'benchmarks' \
                 --out_folder 'outputs' \
-                --out_prefix 'finbenthic2-base-200' \
-                --deterministic 'True'
+                --out_prefix 'finbenthic2-base-02-lrsched-02' \
+                --deterministic 'True' \
+                --ckpt_path "outputs/finbenthic2/finbenthic2-base-02-lrsched_efficientnet_b0/f0/finbenthic2-base-02-lrsched_efficientnet_b0_f0_240514-2344-9d57_epoch67_val-loss0.23.ckpt"

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=eb0
+#SBATCH --job-name=06swa
 #SBATCH --account=Project_2004353
 #SBATCH --partition=gpu
 #SBATCH --time=12:00:00
@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=32G
 #SBATCH --gres=gpu:v100:1,nvme:64
-#SBATCH -o "o_eb0.txt"
-#SBATCH -e "e_eb0.txt"
+#SBATCH -o "o_swa.txt"
+#SBATCH -e "e_swa.txt"
 
 # This batchjob trains an initial model from scratch
 
@@ -22,7 +22,7 @@ srun python scripts/02_train.py \
                 --dataset_name "finbenthic2" \
                 --csv_path "data/processed/finbenthic2/01_finbenthic2_processed_5splits_taxon.csv" \
                 --label "taxon" \
-                --fold 1 \
+                --fold 0 \
                 --class_map "data/processed/finbenthic2/label_map_01_taxon.txt" \
                 --imsize 224 \
                 --batch_size 256 \
@@ -32,14 +32,16 @@ srun python scripts/02_train.py \
                 --freeze_base 'False' \
                 --pretrained 'True' \
                 --opt 'adamw' \
-                --max_epochs 200 \
+                --max_epochs 100 \
                 --min_epochs 5 \
-                --early_stopping 'True' \
-                --early_stopping_patience 50 \
+                --early_stopping 'False' \
+                --early_stopping_patience 0 \
                 --criterion 'cross-entropy' \
-                --lr 0.0001 \
-                --auto_lr 'True' \
-                --log_dir 'benthic-models' \
+                --lr 0.002754228703338169 \
+                --auto_lr 'False' \
+                --swa 'True' \
+                --precision 16 \
+                --log_dir 'benchmarks' \
                 --out_folder 'outputs' \
-                --out_prefix 'finbenthic2-base-200' \
+                --out_prefix 'finbenthic2-swa' \
                 --deterministic 'True'
