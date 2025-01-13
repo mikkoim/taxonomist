@@ -10,7 +10,11 @@ import lightning.pytorch as pl
 import pandas as pd
 import torch
 import yaml
-from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint, StochasticWeightAveraging
+from lightning.pytorch.callbacks import (
+    LearningRateMonitor,
+    ModelCheckpoint,
+    StochasticWeightAveraging,
+)
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.tuner import Tuner
@@ -28,6 +32,7 @@ class TaxonomistModelArguments:
     dataset_config_path: str
     dataset_name: str
     csv_path: str
+    custom_dataset: bool = False
 
     label_column: Optional[str] = None
     fold: int = 0
@@ -168,6 +173,7 @@ class TaxonomistModel:
             dataset_config_path=self.args.dataset_config_path,
             dataset_name=self.args.dataset_name,
             csv_path=self.args.csv_path,
+            custom_dataset=self.args.custom_dataset,
             fold=self.args.fold,
             label=self.args.label_column,
             label_transform=class_map["fwd"],
@@ -237,7 +243,9 @@ class TaxonomistModel:
         try:
             model.load_state_dict(ckpt["state_dict"])
         except RuntimeError:
-            print("Checkpoint and model parameters don't match. Loading without last layer")
+            print(
+                "Checkpoint and model parameters don't match. Loading without last layer"
+            )
             model = LitModule(**ckpt["hyper_parameters"])
             model.load_state_dict(ckpt["state_dict"], strict=False)
             if self.args.freeze_base:
@@ -272,17 +280,19 @@ class TaxonomistModel:
 
         # Early stopping
         if self.args.early_stopping:
-            print(f"Using early stopping with patience {self.args.early_stopping_patience}")
+            print(
+                f"Using early stopping with patience {self.args.early_stopping_patience}"
+            )
             callbacks.append(
                 EarlyStopping(
                     monitor="val/loss", patience=self.args.early_stopping_patience
                 )
             )
         if self.args.swa:
-            print(f"Using Stochastic Weight Averaging with learning rate {self.args.swa_lrs}")
-            callbacks.append(
-                StochasticWeightAveraging(swa_lrs=self.args.swa_lrs)
+            print(
+                f"Using Stochastic Weight Averaging with learning rate {self.args.swa_lrs}"
             )
+            callbacks.append(StochasticWeightAveraging(swa_lrs=self.args.swa_lrs))
         return callbacks
 
     def _create_lr_scheduler(self):
@@ -328,10 +338,10 @@ class TaxonomistModel:
 
             # Training
             trainer = pl.Trainer(
-                accelerator=self.args.accelerator, # auto
-                strategy=self.args.strategy, # auto
-                devices=self.args.devices, # auto
-                num_nodes=self.args.num_nodes, # 1
+                accelerator=self.args.accelerator,  # auto
+                strategy=self.args.strategy,  # auto
+                devices=self.args.devices,  # auto
+                num_nodes=self.args.num_nodes,  # 1
                 max_epochs=self.args.max_epochs,
                 min_epochs=self.args.min_epochs,
                 logger=logger,
@@ -431,7 +441,9 @@ class TaxonomistModel:
             else:  # Outputs of feature extraction can vary depending on the pooling
                 outname = f"{out_stem}_{self.args.feature_extraction}.p.gz"
                 with gzip.open(out_folder / outname, "wb") as f:
-                    pickle.dump({"fname": fnames, "y_true": y_true, "features": y_pred}, f)
+                    pickle.dump(
+                        {"fname": fnames, "y_true": y_true, "features": y_pred}, f
+                    )
                 print(out_folder / outname)
 
         return df
@@ -484,7 +496,6 @@ class TaxonomistModel:
         return trainer
 
     def predict(self):
-
         out_folder = self._create_out_folder(training=False)
 
         ckpt = torch.load(

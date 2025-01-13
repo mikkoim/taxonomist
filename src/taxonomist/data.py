@@ -15,6 +15,7 @@ import math
 from typing import Dict, List, Optional, Tuple
 
 from torch import Tensor
+from torch.utils.data import IterableDataset
 
 from torchvision.transforms import functional as F, InterpolationMode
 
@@ -86,24 +87,19 @@ class LitDataModule(pl.LightningDataModule):
     """PyTorch Lightning DataModule for an arbitary dataset
 
     Args:
-
-        csv_path: path to the csv file containing the filenames
-
-        data_folder: path to the folder containing the images
-
-        fold: cross-validation fold to use
-
-        label: column to use as the label
-
-        label_transform: function to apply to the label list
-
-        batch_size: batch size
-
-        imsize: size of the images
-
-        load_to_memory: whether to load the images to memory
-
-        tta_n: The number of test-time-augmentation rounds
+        data_folder (str): Path to the folder containing the images or the webdataset.
+        dataset_config_path (str): Path to the dataset config file.
+        dataset_name (str): Name of the dataset to use (e.g., 'finbenthic2'). This is used to select the correct dataset and loading function from the config file.
+        custom_dataset (bool): Whether to use a custom dataset.
+        csv_path (str): Path to the metadata CSV file.
+        fold (int): Cross-validation fold to use.
+        label (str): Metadata column to use as the label.
+        aug (str): Data augmentation scheme to use.
+        batch_size (int): Batch size.
+        imsize (int): Image resize size.
+        label_transform (any): Function to apply to the label list.
+        load_to_memory (bool): Whether to load the images to memory.
+        tta_n (int): The number of test-time-augmentation rounds.
     """
 
     def __init__(
@@ -111,6 +107,7 @@ class LitDataModule(pl.LightningDataModule):
         data_folder: str,
         dataset_config_path: str = None,
         dataset_name: str = None,
+        custom_dataset: bool = False,
         csv_path: str = None,
         fold: int = None,
         label: str = None,
@@ -125,6 +122,7 @@ class LitDataModule(pl.LightningDataModule):
         self.data_folder = data_folder
         self.dataset_config_path = dataset_config_path
         self.dataset_name = dataset_name
+        self.custom_dataset = custom_dataset
 
         self.csv_path = csv_path
         self.fold = fold
@@ -137,18 +135,28 @@ class LitDataModule(pl.LightningDataModule):
         self.label_transform = label_transform
         self.load_to_memory = load_to_memory
         self.tta_n = tta_n
+        self.is_iterabledataset = None
 
         self.cpu_count = int(
             os.getenv("SLURM_CPUS_PER_TASK") or torch.multiprocessing.cpu_count()
         )
-        self.drop_last = lambda x: True if len(x) % batch_size == 1 else False
 
         self.aug_args = {"imsize": imsize}
         self.tf_test, self.tf_train = choose_aug(self.aug, self.aug_args)
 
     def setup(self, stage=None):
+        """Sets up the datasets for training, validation, and testing."""
+        if self.custom_dataset:
+            self._setup_custom_dataset()
+        else:
+            self._setup_filepath_dataset()
+
+    def _setup_filepath_dataset(self):
+        # Loads the module that defines dataset loading functions
         dataset_config_module = load_module_from_path(self.dataset_config_path)
 
+        # Applies the dataset loading function, chosen by the dataset name
+        # returns a dictionary of filepaths and labels for train, val, and test sets
         fnames, labels = dataset_config_module.preprocess_dataset(
             data_folder=self.data_folder,
             dataset_name=self.dataset_name,
@@ -157,11 +165,13 @@ class LitDataModule(pl.LightningDataModule):
             label=self.label,
         )
 
+        # Applies the label transform function to the labels
         if self.label_transform:
             labels["train"] = self.label_transform(labels["train"])
             labels["val"] = self.label_transform(labels["val"])
             labels["test"] = self.label_transform(labels["test"])
 
+        # Creates the datasets
         self.trainset = Dataset(
             fnames["train"],
             labels["train"],
@@ -198,14 +208,35 @@ class LitDataModule(pl.LightningDataModule):
         ]
 
         self.ttaset = torch.utils.data.ConcatDataset(tta_list)
+        self.is_iterabledataset = False
+
+    def _setup_custom_dataset(self):
+        dataset_config_module = load_module_from_path(self.dataset_config_path)
+        dataset = dataset_config_module.return_custom_datasets(
+            data_folder=self.data_folder,
+            dataset_name=self.dataset_name,
+            csv_path=self.csv_path,
+            fold=self.fold,
+            label=self.label,
+            label_transform=self.label_transform,
+            transforms={"train": self.tf_train, "test": self.tf_test},
+        )
+
+        self.trainset = dataset["train"]
+        self.valset = dataset["val"]
+        self.testset = dataset["test"]
+
+        if isinstance(self.trainset, IterableDataset):
+            self.is_iterabledataset = True
 
     def train_dataloader(self):
         trainloader = torch.utils.data.DataLoader(
             self.trainset,
             batch_size=self.batch_size,
-            shuffle=True,
-            drop_last=self.drop_last(self.trainset),
+            shuffle=True if not self.is_iterabledataset else False,
+            drop_last=self._drop_last(self.trainset),
             num_workers=self.cpu_count,
+            persistent_workers=True,
         )
 
         return trainloader
@@ -214,8 +245,9 @@ class LitDataModule(pl.LightningDataModule):
         valloader = torch.utils.data.DataLoader(
             self.valset,
             batch_size=self.batch_size,
-            drop_last=self.drop_last(self.valset),
+            drop_last=self._drop_last(self.valset),
             num_workers=self.cpu_count,
+            persistent_workers=True,
         )
 
         return valloader
@@ -226,6 +258,7 @@ class LitDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             drop_last=False,
             num_workers=self.cpu_count,
+            persistent_workers=True,
         )
 
         return testloader
@@ -238,6 +271,12 @@ class LitDataModule(pl.LightningDataModule):
             num_workers=self.cpu_count,
         )
         return ttaloader
+
+    def _drop_last(self, x):
+        if (not self.is_iterabledataset) and (len(x) % self.batch_size == 1):
+            return True
+        else:
+            return False
 
     def tta_process(self, y):
         A = y.reshape(self.tta_n, len(self.testset))
@@ -255,8 +294,13 @@ class LitDataModule(pl.LightningDataModule):
         visualize_dataset(self.valset, v=False, name=folder / f"{_now}-val.jpg")
         visualize_dataset(self.testset, v=False, name=folder / f"{_now}-test.jpg")
 
+
 def _custom_apply_op(
-    img: Tensor, op_name: str, magnitude: float, interpolation: InterpolationMode, fill: Optional[List[float]]
+    img: Tensor,
+    op_name: str,
+    magnitude: float,
+    interpolation: InterpolationMode,
+    fill: Optional[List[float]],
 ):
     """
     Custom apply_op
@@ -337,6 +381,7 @@ def _custom_apply_op(
         raise ValueError(f"The provided operator {op_name} is not recognized.")
     return img
 
+
 class TrivialAugmentWideNoWarp(torch.nn.Module):
     """
     Modified version of TrivialAugmentWide, with warping operations removed.
@@ -361,7 +406,10 @@ class TrivialAugmentWideNoWarp(torch.nn.Module):
             "Color": (torch.linspace(0.0, 0.99, num_bins), True),
             "Contrast": (torch.linspace(0.0, 0.99, num_bins), True),
             "Sharpness": (torch.linspace(0.0, 0.99, num_bins), True),
-            "Posterize": (8 - (torch.arange(num_bins) / ((num_bins - 1) / 6)).round().int(), False),
+            "Posterize": (
+                8 - (torch.arange(num_bins) / ((num_bins - 1) / 6)).round().int(),
+                False,
+            ),
             "Solarize": (torch.linspace(255.0, 0.0, num_bins), False),
             "AutoContrast": (torch.tensor(0.0), False),
             "Equalize": (torch.tensor(0.0), False),
@@ -387,15 +435,20 @@ class TrivialAugmentWideNoWarp(torch.nn.Module):
         op_name = list(op_meta.keys())[op_index]
         magnitudes, signed = op_meta[op_name]
         magnitude = (
-            float(magnitudes[torch.randint(len(magnitudes), (1,), dtype=torch.long)].item())
+            float(
+                magnitudes[
+                    torch.randint(len(magnitudes), (1,), dtype=torch.long)
+                ].item()
+            )
             if magnitudes.ndim > 0
             else 0.0
         )
         if signed and torch.randint(2, (1,)):
             magnitude *= -1.0
 
-        return _custom_apply_op(img, op_name, magnitude, interpolation=self.interpolation, fill=fill)
-
+        return _custom_apply_op(
+            img, op_name, magnitude, interpolation=self.interpolation, fill=fill
+        )
 
     def __repr__(self) -> str:
         s = (
@@ -406,6 +459,7 @@ class TrivialAugmentWideNoWarp(torch.nn.Module):
             f")"
         )
         return s
+
 
 def choose_aug(aug, args):
     """Select data augmentation transformations based on the provided augmentation scheme."""
@@ -468,17 +522,18 @@ def choose_aug(aug, args):
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             ]
         )
-    
+
     elif aug == "trivialaugment-nowarp":
+
         def tf_train(img):
             aug = TrivialAugmentWideNoWarp()
             aug2 = A.Compose(
-                    [
-                        A.Resize(imsize, imsize, p=1.0),
-                        A.Flip(),
-                        A.RandomRotate90(p=0.5),
-                        a_end_tf,
-                    ]
+                [
+                    A.Resize(imsize, imsize, p=1.0),
+                    A.Flip(),
+                    A.RandomRotate90(p=0.5),
+                    a_end_tf,
+                ]
             )
             x = aug(img)
             x = aug2(image=np.array(x))["image"]
@@ -491,7 +546,6 @@ def choose_aug(aug, args):
             ]
         )
         tf_test = lambda x: transform_test(image=np.array(x))["image"]
-        
 
     elif aug == "randaugment":
         tf_test = transforms.Compose(
@@ -585,7 +639,7 @@ def choose_aug(aug, args):
         transform_test = A.Compose([keep_aspect_resize, a_end_tf])
         tf_test = lambda x: transform_test(image=np.array(x))["image"]
         tf_train = tf_test
-    
+
     elif aug == "flips-cont-rotate":
         transform_test = A.Compose(
             [

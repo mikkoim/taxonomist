@@ -37,6 +37,18 @@ def add_dataset_args(parser: argparse.ArgumentParser):
         required=True,
     )
     parser.add_argument(
+        "--custom_dataset",
+        type=lambda x: bool(strtobool(x)),
+        nargs="?",
+        const=True,
+        help="If True, a custom dataset is loaded using the 'return_dataset' function "
+        "from the dataset config file. If False, the default behavior of loading "
+        "filenames and labels based on a csv file is used.",
+        default=False,
+        required=False,
+    )
+
+    parser.add_argument(
         "--label_column",
         type=str,
         help="Label column. Found from the csv_path file.",
@@ -286,7 +298,7 @@ def add_train_args(parser: argparse.ArgumentParser):
         type=float,
         help="The SWA learning rate to use",
         default=1e-2,
-        required=False
+        required=False,
     )
     parser.add_argument(
         "--precision",

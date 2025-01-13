@@ -96,31 +96,46 @@ def histogram_batch(ds, bins, b, n=8):
     return X
 
 
+def iterator_batch(ds, n=8):
+    """Fetches n samples from the dataset ds without indexing"""
+    dsiter = iter(ds)
+    x_list = [next(dsiter)["x"] for _ in range(n)]
+    X = torch.stack(x_list)
+    return X
+
+
 def visualize_dataset(ds, n=8, v=True, name=None, to_numpy=False):
     """Finds unique classes from the dataset ds and fetches n examples of all classes.
     Returns this as a array, or saves to an image
     """
     I_list = []
     fname = name or "img-" + datetime.now().strftime("%H%M%S") + ".jpg"
+    print(f"Visualizing dataset in {fname}")
 
-    # Continuous target
-    if len(np.unique(ds.y)) > 50:
-        _, bin_edges = np.histogram(ds.y, bins=50)
-        bins = [bisect.bisect(bin_edges, x) for x in ds.y]
-        for b in np.unique(bins):
-            if v:
-                print(bin_edges[b - 1])
-            T = histogram_batch(ds, bins, b)
-            I = show_img(T, to_numpy=True)
-            I_list.append(I)
-    # Categorical target
-    else:
-        for target in np.unique(ds.y):
-            if v:
-                print(target)
-            T = class_batch(ds, target, n)
-            I = show_img(T, to_numpy=True)
-            I_list.append(I)
+    try:
+        # Continuous target
+        if len(np.unique(ds.y)) > 50:
+            _, bin_edges = np.histogram(ds.y, bins=50)
+            bins = [bisect.bisect(bin_edges, x) for x in ds.y]
+            for b in np.unique(bins):
+                if v:
+                    print(bin_edges[b - 1])
+                T = histogram_batch(ds, bins, b)
+                I = show_img(T, to_numpy=True)
+                I_list.append(I)
+        # Categorical target
+        else:
+            for target in np.unique(ds.y):
+                if v:
+                    print(target)
+                T = class_batch(ds, target, n)
+                I = show_img(T, to_numpy=True)
+                I_list.append(I)
+
+    except AttributeError:
+        T = iterator_batch(ds, 8)
+        I = show_img(T, to_numpy=True)
+        I_list.append(I)
 
     I = np.vstack(I_list)
 

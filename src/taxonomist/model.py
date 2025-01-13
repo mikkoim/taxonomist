@@ -75,10 +75,10 @@ class Model(nn.Module):
             self.freeze_base()
 
         self.init_proj_head(n_classes)
-    
+
     def init_proj_head(self, n_classes):
         self.proj_head = nn.Sequential(nn.Linear(self.h_dim, n_classes))
-    
+
     def freeze_base(self):
         for param in self.base_model.parameters():
             param.requires_grad = False
@@ -198,8 +198,12 @@ class LitModule(pl.LightningModule):
 
     def common_epoch_end(self, outputs, name: str):
         """Combine outputs for calculating metrics at the end of an epoch."""
-        y_true = torch.cat([x["y_true"] for x in outputs]).cpu().detach().float().numpy()
-        y_pred = torch.cat([x["y_pred"] for x in outputs]).cpu().detach().float().numpy()
+        y_true = (
+            torch.cat([x["y_true"] for x in outputs]).cpu().detach().float().numpy()
+        )
+        y_pred = (
+            torch.cat([x["y_pred"] for x in outputs]).cpu().detach().float().numpy()
+        )
 
         if self.label_transform:
             y_true = self.label_transform(y_true)

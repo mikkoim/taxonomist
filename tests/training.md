@@ -10,7 +10,7 @@ python scripts/02_train.py \
     --class_map "data/processed/rodi/rodi_label_map.txt" \
     --imsize 224 \
     --batch_size 256 \
-    --aug 'aug-02' \
+    --aug 'trivialaugment' \
     --load_to_memory 'False' \
     --tta 'False' \
     --model 'resnet18' \
@@ -39,7 +39,7 @@ python scripts/02_train.py \
     --class_map "data/processed/rodi/rodi_label_map.txt" \
     --imsize 224 \
     --batch_size 256 \
-    --aug 'aug-02' \
+    --aug 'trivialaugment' \
     --load_to_memory 'False' \
     --tta 'False' \
     --model 'resnet18' \
@@ -69,7 +69,7 @@ python scripts/02_train.py \
     --class_map "data/processed/rodi/rodi_label_map.txt" \
     --imsize 224 \
     --batch_size 256 \
-    --aug 'aug-02' \
+    --aug 'trivialaugment' \
     --load_to_memory 'False' \
     --tta 'False' \
     --model 'resnet18' \
