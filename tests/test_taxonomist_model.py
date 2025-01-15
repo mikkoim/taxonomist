@@ -1,5 +1,5 @@
 import pytest
-from taxonomist.taxonomist_model import TaxonomistCheckpoint
+from taxonomist.taxonomist_model import TaxonomistCheckpoint, TaxonomistModelArguments
 
 def test_taxonomist_checkpoint_existing_path():
     existing_ckpt_path = "tests/data/rodi_resnet18_f0_250113-1038-a44d_epoch18_val-loss1.45_last.ckpt"
@@ -9,6 +9,7 @@ def test_taxonomist_checkpoint_existing_path():
     assert checkpoint.name == "rodi_resnet18_f0_250113-1038-a44d_epoch18_val-loss1.45_last"
     assert checkpoint.basename == "rodi_resnet18"
     assert checkpoint.uid == "250113-1038-a44d"
+    assert str(checkpoint.folder) == "tests/data"
     
     assert isinstance(checkpoint.ckpt, dict)
 
@@ -26,6 +27,7 @@ def test_taxonomist_checkpoint_nonlast():
     assert checkpoint.name == "rodi_resnet18_f0_250113-1038-a44d_epoch18_val-loss1.45"
     assert checkpoint.basename == "rodi_resnet18"
     assert checkpoint.uid == "250113-1038-a44d"
+    assert str(checkpoint.folder) == "tests/data"
 
     assert isinstance(checkpoint.ckpt, dict)
 

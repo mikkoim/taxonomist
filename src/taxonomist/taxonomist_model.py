@@ -146,6 +146,16 @@ class TaxonomistCheckpoint:
             return "_".join(self.name.split("_")[:-5])
         else:
             return "_".join(self.name.split("_")[:-4])
+    
+    @property
+    def folder(self) -> Path:
+        """
+        Get the folder of the checkpoint file.
+
+        Returns:
+            Path: The folder of the checkpoint file.
+        """
+        return self.ckpt_path.parents[0]
 
     @property
     def uid(self) -> str:
@@ -176,20 +186,32 @@ class TaxonomistModel:
     def __init__(self, args: TaxonomistModelArguments):
         self.args = args
 
+        self._create_checkpoint()
+
         self.basename = f"{args.out_prefix}_{args.timm_model_name}"
-        if self.args.resume:
-            # Loads the checkpoint
+        self.uid = self.get_uid()
+        self.outname = f"{self.basename}_f{args.fold}_{self.uid}"
+
+        self.tag = f"{args.dataset_name}_{args.aug}"
+        if self.args.tta:
+            self.tag += "_tta"
+
+        if args.deterministic:
+            pl.seed_everything(seed=args.random_state, workers=True)
+    
+    def _create_checkpoint(self):
+        if self.args.ckpt_path:
             self.ckpt = TaxonomistCheckpoint(self.args.ckpt_path)
+            self.has_checkpoint = True
+        else:
+            self.ckpt = None
+            self.has_checkpoint = False
+
+        if self.args.resume:
             if self.basename != self.ckpt.basename:
                 raise ValueError(
                     f"Model basename {self.basename} does not match checkpoint basename {self.ckpt.basename}"
                 )
-
-        self.uid = self.get_uid()
-        self.outname = f"{self.basename}_f{args.fold}_{self.uid}"
-
-        if args.deterministic:
-            pl.seed_everything(seed=args.random_state, workers=True)
 
     def get_uid(self):
         """
@@ -202,48 +224,59 @@ class TaxonomistModel:
         # stopped/cancelled
         if not self.args.resume:
             uid = datetime.now().strftime("%y%m%d-%H%M") + f"-{str(uuid.uuid4())[:4]}"
-            print(f"Generating new uid uid: {uid}")
         else:
             print(f"Using uid from checkpoint: {self.ckpt.uid}")
             uid = self.ckpt.uid
         return uid
 
-    def _create_out_folder(self, training=True):
-        if training:
+    def _create_out_folder(self, task: str):
+        """
+        Creates an output folder for a given task.
+        If the task is training, the folder is created based on the dataset name, model name, and fold.
+        If the task is predictions or features, the folder is created based on the checkpoint path or the arguments.
+        If no checkpoint is provided, the folder is created based on the dataset name, model name, and fold.
+
+        Args:
+            task (str): The task for which the output folder is created.
+        
+        Returns:
+            Path: The output folder for the given task.
+        
+        """
+        if task == "training":
             out_folder = (
                 Path(self.args.out_folder)
-                / Path(self.args.dataset_name)
-                / self.basename
+                / str(self.args.dataset_name)
+                / str(self.basename)
                 / f"f{self.args.fold}"
             )
-        else:
-            tag = f"{self.args.dataset_name}_{self.args.aug}"
-            if self.args.tta:
-                tag += "_tta"
-            folder_type = "features" if self.args.feature_extraction else "predictions"
-            if self.args.ckpt_path:
-                out_folder = Path(self.args.ckpt_path).parents[0] / folder_type / tag
+        elif task == "predictions":
+            if self.has_checkpoint:
+                out_folder = Path(self.ckpt.folder, "predictions", self.tag)
             else:
-                model_stem = self.args.model
                 out_folder = (
                     Path(self.args.out_folder)
-                    / self.args.dataset_name
-                    / model_stem
+                    / str(self.args.dataset_name)
+                    / str(self.args.timm_model_name)
                     / f"f{self.args.fold}"
-                    / folder_type
-                    / tag
+                    / "predictions"
+                    / self.tag
+                )
+        elif task == "features":
+            if self.has_checkpoint:
+                out_folder = Path(self.ckpt.folder, "features", self.tag)
+            else:
+                out_folder = (
+                    Path(self.args.out_folder)
+                    / str(self.args.dataset_name)
+                    / str(self.args.timm_model_name)
+                    / f"f{self.args.fold}"
+                    / "features"
+                    / self.tag
                 )
 
         out_folder.mkdir(exist_ok=True, parents=True)
         return out_folder
-
-    def _create_prediction_out_folder(self):
-        tag = f"{self.args.dataset_name}_{self.args.aug}"
-        if self.args.tta:
-            tag += "_tta"
-
-        out_folder = Path(self.args.ckpt_path).parents[0] / "predictions" / tag
-        out_folder.mkdir(exist_ok=True, parents=True)
 
     def _load_class_map(self):
         # Class / label map loading
@@ -326,10 +359,7 @@ class TaxonomistModel:
         return LitModule(**ckpt["hyper_parameters"])
 
     def _load_checkpoint(self, model):
-        ckpt = torch.load(
-            self.args.ckpt_path,
-            map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-        )
+        ckpt = self.ckpt.ckpt
         try:
             model.load_state_dict(ckpt["state_dict"])
         except RuntimeError:
@@ -540,7 +570,7 @@ class TaxonomistModel:
 
     def train_model(self):
         # initialize and get folder where the parameters are saved
-        out_folder = self._create_out_folder()
+        out_folder = self._create_out_folder("training")
 
         # get class mapping
         class_map, n_classes = self._load_class_map()
@@ -586,18 +616,16 @@ class TaxonomistModel:
         return trainer
 
     def predict(self):
-        out_folder = self._create_out_folder(training=False)
-
-        ckpt = torch.load(
-            self.args.ckpt_path,
-            map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-        )
+        if self.args.feature_extraction:
+            out_folder = self._create_out_folder("features")
+        else:
+            out_folder = self._create_out_folder("predictions")
 
         class_map, n_classes = self._load_class_map()
 
         dm = self._create_data_module(class_map)
 
-        model = self._create_model(None, class_map=class_map, ckpt=ckpt, training=False)
+        model = self._create_model(None, class_map=class_map, ckpt=self.ckpt.ckpt, training=False)
 
         trainer = self._create_trainer(None, None, training=False)
 
