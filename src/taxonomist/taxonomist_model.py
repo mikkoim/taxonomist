@@ -23,7 +23,7 @@ import wandb
 
 from .data import LitDataModule
 from .model import FeatureExtractionModule, LitModule
-from .utils import load_class_map
+from .utils import load_class_map, TaxonomistUid
 
 
 @dataclass(frozen=True)
@@ -87,35 +87,125 @@ class TaxonomistModelArguments:
     val_check_interval: Optional[float] = 1.0
     suffix = None
 
+class TaxonomistCheckpoint:
+    """
+    A class used to represent a checkpoint in the Taxonomist model.
+
+    Attributes:
+        ckpt_path (Path): Path to the checkpoint file.
+        ckpt (dict): The checkpoint dictionary.
+    """
+
+    def __init__(self, ckpt_path: str):
+        """
+        Initialize the TaxonomistCheckpoint with the given checkpoint path.
+
+        Args:
+            ckpt_path (str): Path to the checkpoint file.
+
+        Raises:
+            ValueError: If the checkpoint path does not exist.
+        """
+        self.ckpt_path = Path(ckpt_path)
+        if not self.ckpt_path.exists():
+            raise ValueError(f"The checkpoint path '{str(self.ckpt_path)}' does not exist")
+
+        self.ckpt = torch.load(
+            self.ckpt_path,
+            map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        )
+
+    def is_last(self) -> bool:
+        """
+        Check if the checkpoint is the last checkpoint (i.e., has suffix '_last').
+
+        Returns:
+            bool: True if the checkpoint is the last, False otherwise.
+        """
+        return self.name.endswith("_last")
+
+    @property
+    def name(self) -> str:
+        """
+        Get the name of the checkpoint file without the extension.
+
+        Returns:
+            str: The name of the checkpoint file.
+        """
+        return self.ckpt_path.stem
+    
+    @property
+    def basename(self) -> str:
+        """
+        Get the basename of the checkpoint file.
+
+        Returns:
+            str: The basename of the checkpoint file.
+        """
+        if self.is_last():
+            return "_".join(self.name.split("_")[:-5])
+        else:
+            return "_".join(self.name.split("_")[:-4])
+
+    @property
+    def uid(self) -> str:
+        """
+        Get the unique identifier of the checkpoint file.
+
+        Returns:
+            str: The unique identifier of the checkpoint file.
+        """
+        if self.is_last():
+            return self.name.split("_")[-4]
+        else:
+            return self.name.split("_")[-3]
+    
+        
+def validate_arguments(args: TaxonomistModelArguments):
+    """
+    Validate the arguments of the TaxonomistModelArguments dataclass.
+    Args:
+        args (TaxonomistModelArguments): The arguments to validate
+    """
+    if args.resume:
+        if args.ckpt_path is None:
+            raise ValueError("When resuming, a ckpt_path must be set")
+
 
 class TaxonomistModel:
     def __init__(self, args: TaxonomistModelArguments):
         self.args = args
+
         self.basename = f"{args.out_prefix}_{args.timm_model_name}"
-        self.uid = self._parse_uid()
+        if self.args.resume:
+            # Loads the checkpoint
+            self.ckpt = TaxonomistCheckpoint(self.args.ckpt_path)
+            if self.basename != self.ckpt.basename:
+                raise ValueError(
+                    f"Model basename {self.basename} does not match checkpoint basename {self.ckpt.basename}"
+                )
+
+        self.uid = self.get_uid()
         self.outname = f"{self.basename}_f{args.fold}_{self.uid}"
 
         if args.deterministic:
             pl.seed_everything(seed=args.random_state, workers=True)
 
-    def _parse_uid(self):
-        # It is possible to resume to an existing run that was cancelled/stopped if
-        # argument ckpt_path is provided that contains the weights of when the run was
+    def get_uid(self):
+        """
+        Parse the unique identifier of the model. If resuming, the uid is taken from the checkpoint.
+        Otherwise, a new uid is generated.
+
+        Returns:
+            str: The unique identifier of the model.
+        """
         # stopped/cancelled
         if not self.args.resume:
             uid = datetime.now().strftime("%y%m%d-%H%M") + f"-{str(uuid.uuid4())[:4]}"
+            print(f"Generating new uid uid: {uid}")
         else:
-            if not self.args.ckpt_path:
-                raise ValueError("When resuming, a ckpt_path must be set")
-            # Parse the uid from filename
-            print(f"Using checkpoint from {self.args.ckpt_path}")
-            ckpt_name = Path(self.args.ckpt_path).stem
-            if not ckpt_name.endswith("_last"):
-                raise ValueError(
-                    "If resume=True the checkpoint must be the last checkpoint"
-                )
-            uid = ckpt_name.split("_")[-4]
-            assert self.basename == "_".join(ckpt_name.split("_")[:-5])
+            print(f"Using uid from checkpoint: {self.ckpt.uid}")
+            uid = self.ckpt.uid
         return uid
 
     def _create_out_folder(self, training=True):

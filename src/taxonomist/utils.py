@@ -13,6 +13,10 @@ import timm
 import torch
 import torchvision
 
+class TaxonomistUid():
+    def __init__(self):
+        pass
+
 
 def load_continuous_transform(name: str):
     """
