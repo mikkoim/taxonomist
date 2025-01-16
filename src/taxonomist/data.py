@@ -18,6 +18,7 @@ from torch import Tensor
 from torch.utils.data import IterableDataset
 
 from torchvision.transforms import functional as F, InterpolationMode
+from datasets import load_dataset
 
 from .utils import load_module_from_path, read_image, visualize_dataset
 
@@ -818,3 +819,67 @@ def choose_aug(aug, args):
         raise ValueError(f"Invalid augmentation value {aug}")
 
     return tf_test, tf_train
+
+def make_webdataset(data_folder: str,
+                    df: pd.DataFrame,
+                    image_column: str,
+                    image_key: str,
+                    fold_column: str,
+                    filename2label: Dict[str, int],
+                    batch_size: int,
+                    shuffle_buffer: int,
+                    label_transform,
+                    transforms):
+    """
+    Make a webdataset from a CSV file and a folder of images.
+
+    Args:
+        data_folder (str): Path to the folder containing the webdataset tars.
+        df (pandas.DataFrame): The meatadata
+        image_column (str): Column name of the image file names.
+        image_key (str): image column in the webdataset. (e.g., "png", "jpg")
+        fold_column (str): Column name of the fold.
+        filename2label (dict): Dictionary mapping image file names to labels.
+        batch_size (int): Batch size during mapping.
+        label_transform (any): Function to apply to the label list.
+        transforms (dict): Dictionary of transforms to apply to the dataset.
+    """
+    def make_sample(examples, filename2label, label_transform):
+        keys = examples["__key__"]
+        return {
+            image_key: examples[image_key],
+            "y": label_transform([filename2label[x] for x in keys]),
+            "fname": keys,
+        }
+
+    # Load dataset
+    dataset = load_dataset("webdataset",
+                           data_dir=data_folder,
+                           split="train",
+                           streaming=True,
+                           cache_dir="huggingface_cache")
+    dataset = dataset.map(lambda x: make_sample(x, filename2label, label_transform),
+                          batched=True,
+                          batch_size=batch_size)
+    dataset = dataset.rename_column(image_key, "x")
+
+    # Make filters
+    train_filter = dict(zip(df[image_column], df[fold_column] == "train"))
+    val_filter = dict(zip(df[image_column], df[fold_column] == "val"))
+    test_filter = dict(zip(df[image_column], df[fold_column] == "test"))
+
+    ds = {}
+
+    def map_transform(examples, transform):
+        examples["x"] = [transform(x) for x in examples["x"]]
+        return examples
+
+    ds["train"] = (dataset.filter(lambda x: train_filter[x["fname"]])
+                          .map(lambda x: map_transform(x, transforms["train"]), batched=True, batch_size=batch_size)
+                          .shuffle(buffer_size=shuffle_buffer))
+
+    ds["val"] = (dataset.filter(lambda x: val_filter[x["fname"]])
+                        .map(lambda x: map_transform(x, transforms["test"]), batched=True, batch_size=batch_size))
+    ds["test"] = (dataset.filter(lambda x: test_filter[x["fname"]])
+                         .map(lambda x: map_transform(x, transforms["test"]), batched=True, batch_size=batch_size))
+    return ds
