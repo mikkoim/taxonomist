@@ -188,11 +188,11 @@ def add_model_args(parser: argparse.ArgumentParser):
         required=False,
     )
     parser.add_argument(
-        "--return_logits",
+        "--return_softmax",
         type=lambda x: bool(strtobool(x)),
         nargs="?",
         const=True,
-        help="returns logits instead of softmax output in the prediction script",
+        help="calculates and returns the softmax instead of logits in the prediction script",
         default=False,
         required=False,
     )
@@ -354,6 +354,12 @@ def add_train_args(parser: argparse.ArgumentParser):
 
 def add_program_args(parser: argparse.ArgumentParser):
     parser.add_argument(
+        "--task",
+        type=str,
+        help="A task specifier. In predict stage, can be 'predict' or 'feature-extraction'"
+             "In train stage, can be 'classification' or 'regression'",
+        required=True)
+    parser.add_argument(
         "--log_dir",
         type=str,
         help="Logging directory. This name is passed to wandb.",
@@ -379,6 +385,7 @@ def add_program_args(parser: argparse.ArgumentParser):
         default=42,
         required=False,
     )
+    parser.add_argument("--no_wandb", action="store_true")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--smoke_test", action="store_true")
     return parser

@@ -122,7 +122,11 @@ class LitModule(pl.LightningModule):
 
             criterion (str): loss function to use
 
+            opt (dict): dictionary containing optimizer parameters
+
             lr (float): learning rate
+
+            lr_scheduler (dict): dictionary containing learning rate scheduler parameters
 
             label_transform: possible transform that is done for the output labels
         """
@@ -301,7 +305,6 @@ class LitModule(pl.LightningModule):
         self.fnames = np.array([x for xs in xss for x in xs])
         if self.is_classifier:
             logits = torch.cat([x["out"] for x in outputs])
-            self.softmax = logits.softmax(dim=1).cpu().detach().float().numpy()
             self.logits = logits.cpu().detach().float().numpy()
         self.y_true, self.y_pred = self.common_epoch_end(outputs, "test")
 
@@ -369,5 +372,5 @@ class FeatureExtractionModule(pl.LightningModule):
     def on_test_epoch_end(self):
         outputs = self.test_step_outputs
         self.y_true = [x["y_true"] for x in outputs]
-        self.y_pred = [x["out"] for x in outputs]
+        self.features = [x["out"] for x in outputs]
         self.fnames = [x["fname"] for x in outputs]

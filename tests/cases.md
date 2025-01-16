@@ -7,6 +7,7 @@ using an imagefolder dataset, aka not specifying a csv_file
 
 # Training
 - Resuming runs
+    - check that the uid matches
 - multi-GPU
 
 # Prediction
