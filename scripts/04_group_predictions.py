@@ -8,6 +8,7 @@ DESCRIPTION = """
 Performs aggregation to predictions, based on a group variable in the original dataset.
 """
 
+
 def quantile_mean(series):
     """Returns the mean after values outside the 5th and 95th percentile are removed"""
     if len(series) == 2:
@@ -16,6 +17,7 @@ def quantile_mean(series):
     q95 = series.quantile(0.95)
     return series[(q5 <= series) & (series <= q95)].mean()
 
+
 def read_table(fpath):
     if (fpath.endswith(".csv")) or (fpath.endswith(".csv.zip")):
         return pd.read_csv(fpath)
@@ -23,6 +25,7 @@ def read_table(fpath):
         return pd.read_parquet(fpath)
     else:
         raise ValueError("File extension not supported")
+
 
 def group_preds(comb_df, args):
     group_df = comb_df.groupby(args.reference_group)[["y_true", "y_pred"]]
@@ -40,6 +43,7 @@ def group_preds(comb_df, args):
     group_df = group_df.agg(agg_func)
     return group_df
 
+
 def group_logits(comb_df, cols, args):
     y_true = comb_df.groupby(args.reference_group)["y_true"].first()
     group_df = comb_df.groupby(args.reference_group)[cols]
@@ -47,6 +51,7 @@ def group_logits(comb_df, cols, args):
     y_pred = y_scores.idxmax(axis=1).rename("y_pred")
     group_df = pd.concat([y_true, y_pred, y_scores], axis=1)
     return group_df
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -80,7 +85,9 @@ if __name__ == "__main__":
                 "Predictions and reference don't match."
                 " Set a fold parameter if grouping a single fold"
             )
-        ref_df = ref_df[ref_df[f"{args.fold_col_prefix}{str(args.fold)}"] == args.set].reset_index(drop=True)
+        ref_df = ref_df[
+            ref_df[f"{args.fold_col_prefix}{str(args.fold)}"] == args.set
+        ].reset_index(drop=True)
 
     # Check that reference matches
     ref_a = ref_df[args.reference_target]

@@ -166,7 +166,7 @@ if __name__ == "__main__":
             df=df,
             metrics=conf.metrics,
             n_repeats=args.n_bootstrap,
-            alpha=args.bootstrap_alpha
+            alpha=args.bootstrap_alpha,
         )
     else:
         bs_errors = None
@@ -207,7 +207,7 @@ if __name__ == "__main__":
                     df=df_fold,
                     metrics=conf.metrics,
                     n_repeats=args.n_bootstrap,
-                    alpha=args.bootstrap_alpha
+                    alpha=args.bootstrap_alpha,
                 )
             for metric in conf.metrics:
                 row = {}

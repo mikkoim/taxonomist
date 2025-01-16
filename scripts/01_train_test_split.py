@@ -43,14 +43,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--target_col",
         type=str,
-        help="Target variable column. Stratification " "is performed based on this",
+        help="Target variable column. Stratification is performed based on this",
         required=True,
     )
 
     parser.add_argument(
         "--group_col",
         type=str,
-        help="Group column. Groups are non-overlapping " "across train-test-val splits",
+        help="Group column. Groups are non-overlapping across train-test-val splits",
         required=True,
     )
 
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--verbose",
         type=int,
-        help="If set to 1, prints information on data " "splits to console",
+        help="If set to 1, prints information on data splits to console",
         default=1,
     )
 

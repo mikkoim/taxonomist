@@ -1,5 +1,93 @@
 import argparse
 from distutils.util import strtobool
+from dataclasses import dataclass
+from typing import Optional, Union, List
+
+
+@dataclass(frozen=True)
+class TaxonomistModelArguments:
+    task: str
+    data_folder: str
+    dataset_config_path: str
+    dataset_name: str
+    csv_path: str
+    custom_dataset: bool = False
+
+    label_column: Optional[str] = None
+    fold: int = 0
+    class_map_name: str = None
+
+    imsize: int = None
+    batch_size: int = 32
+    aug: str = "none"
+    load_to_memory: bool = False
+    tta: bool = False
+    tta_n: int = 5
+
+    timm_model_name: str = "mobilenetv3_large_100.ra_in1k"
+    criterion: str = None
+    ckpt_path: Optional[str] = None  # required if resume=True
+    freeze_base: bool = False
+    pretrained: bool = True
+    inverse_class_map: str = "same"
+    feature_extraction: str = None
+    return_softmax: bool = False
+
+    min_epochs: Optional[int] = None
+    max_epochs: Optional[int] = None
+    save_top_k: Optional[int] = 1
+    early_stopping: bool = False
+    early_stopping_patience: int = 5  # used if early_stopping=True
+    lr: float = 1e-4
+    opt: str = "adam"
+    lr_scheduler: str = None
+
+    auto_lr: bool = False
+    swa: bool = False
+    swa_lrs: float = 1e-2
+    precision: Union[int, str] = 32
+    deterministic: bool = False
+    resume: bool = False
+
+    accelerator: str = "auto"
+    strategy: Union[str, int] = "auto"
+    devices: Union[str, int] = "auto"
+    num_nodes: int = 1
+
+    log_dir: str = "logs"
+    no_wandb: bool = False
+    out_folder: str = "outputs"
+    out_prefix: str = "metrics"
+    random_state: int = 42
+    debug: bool = False
+    smoke_test: bool = False
+
+    log_every_n_steps: Optional[int] = 10
+    check_val_every_n_epoch: Optional[int] = 1
+    val_check_interval: Optional[float] = 1.0
+    suffix = None
+
+    def __post_init__(self):
+        validate_arguments(self)
+
+
+def validate_arguments(args: TaxonomistModelArguments):
+    """
+    Validate the arguments of the TaxonomistModelArguments dataclass.
+    Args:
+        args (TaxonomistModelArguments): The arguments to validate
+
+    Raises:
+        ValueError: If the arguments are invalid.
+    """
+    if args.resume:
+        if args.ckpt_path is None:
+            raise ValueError("When resuming, a ckpt_path must be set")
+
+    if not args.task in ["classification", "regression", "feature-extraction"]:
+        raise ValueError(
+            "task must be 'classification', 'regression', or 'feature-extraction'"
+        )
 
 
 def add_dataset_args(parser: argparse.ArgumentParser):
@@ -357,8 +445,9 @@ def add_program_args(parser: argparse.ArgumentParser):
         "--task",
         type=str,
         help="A task specifier. In predict stage, can be 'predict' or 'feature-extraction'"
-             "In train stage, can be 'classification' or 'regression'",
-        required=True)
+        "In train stage, can be 'classification' or 'regression'",
+        required=True,
+    )
     parser.add_argument(
         "--log_dir",
         type=str,

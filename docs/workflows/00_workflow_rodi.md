@@ -15,7 +15,7 @@ Analyze the raw dataset like in `notebooks/01_raw_data_analysis_rodi.ipynb`
 The preprocessing script produces a file in `data/processed/rodi/01_rodi_processed.csv`.
 
 ```bash
-export TMPDIR = "data/raw/rodi/" # on CSC this should be the normal nvme TMPDIR
+export TMPDIR="data/raw/rodi/" # on CSC this should be the normal nvme TMPDIR
 python scripts/preprocessing/process_rodi.py \
     --csv_path="$TMPDIR/Induced_Organism_Drift_2022_annotations.csv" \
     --out_folder="data/processed/rodi"
@@ -40,8 +40,9 @@ python scripts/01_train_test_split.py \
 ## 5. Training
 Running this training script should take only a few minutes.
 ```bash
-export TMPDIR = "data/raw/rodi/"
+export TMPDIR="data/raw/rodi/"
 python scripts/02_train.py \
+    --task "classification" \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_config "conf/user_datasets.py" \
     --dataset_name "rodi" \
@@ -81,6 +82,8 @@ This training should take around 5-10 minutes on a GPU.
 for i in {0..4}
 do
 python scripts/02_train.py \
+    --no_wandb \
+    --task "classification" \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
     --dataset_config "conf/user_datasets.py" \
@@ -95,7 +98,7 @@ python scripts/02_train.py \
     --tta 'False' \
     --model 'resnet18' \
     --opt 'adamw' \
-    --max_epochs 2 \
+    --max_epochs 1 \
     --min_epochs 0 \
     --early_stopping 'False' \
     --early_stopping_patience 0 \
@@ -125,6 +128,7 @@ Prediction can also produce logit outputs with the parameter `--return_logits 'T
 # This just sets the checkpoint as the first (best) model in the directory above, as the unique identifier is always different.
 export CKPT_PATH=$(find "outputs/rodi/rodi_new_resnet18/f0/" -type f -name "rodi_new_resnet18*.ckpt" ! -name "*_last.ckpt" | head -1)
 python scripts/03_predict.py \
+    --task "classification" \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
     --dataset_config "conf/user_datasets.py" \
@@ -146,6 +150,7 @@ The output folder is named, based on the augmentation used, this case 'none'. If
 
 ```bash
 python scripts/03_predict.py \
+    --task "classification" \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
     --dataset_config "conf/user_datasets.py" \
@@ -154,8 +159,8 @@ python scripts/03_predict.py \
     --fold 0 \
     --class_map "data/processed/rodi/rodi_label_map.txt" \
     --imsize 224 \
-    --batch_size 1024 \
-    --aug 'geometric' \
+    --batch_size 128 \
+    --aug 'flips-rotate' \
     --out_folder 'outputs' \
     --tta 'True' \
     --out_prefix '' \
@@ -171,6 +176,7 @@ Predictions are always saved to the fold folder of `dataset_name/`
 
 ```bash
 python scripts/03_predict.py \
+    --task "feature-extraction" \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
     --dataset_config "conf/user_datasets.py" \
@@ -202,6 +208,7 @@ do
 export CKPT_PATH=$(find "outputs/rodi/rodi-allfolds_resnet18/f$i/" -type f -name "rodi-allfolds_resnet18_f$i_*.ckpt" ! -name "*_last.ckpt" | head -1)
 echo $CKPT_PATH >> ckpts_used.txt
 python scripts/03_predict.py \
+    --task "classification" \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
     --dataset_config "conf/user_datasets.py" \
@@ -243,7 +250,7 @@ Grouping for the single fold
 export CKPT_PATH=$(find "outputs/rodi/rodi_new_resnet18/f0/" -type f -name "rodi_new_resnet18_f0_*.ckpt" ! -name "*_last.ckpt" | head -1)
 export CKPT_STEM=$(basename "$CKPT_PATH" | sed 's/\.[^.]*$//')
 python scripts/04_group_predictions.py \
-    --predictions "outputs/rodi/rodi_new_resnet18/f0/predictions/rodi_none/_${CKPT_STEM}_none.csv" \
+    --predictions "outputs/rodi/rodi_new_resnet18/f0/predictions/rodi_none/${CKPT_STEM}_none.csv" \
     --reference_csv "data/processed/rodi/01_rodi_processed_5splits_family.csv" \
     --reference_target "family" \
     --fold 0 \

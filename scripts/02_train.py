@@ -20,9 +20,7 @@ def main(args):
     args = parser.parse_args(args)
 
     user_arg_dict = vars(args)
-    return src.TaxonomistModel(
-        src.TaxonomistModelArguments(**user_arg_dict)
-    ).train()
+    return src.TaxonomistModel(src.TaxonomistModelArguments(**user_arg_dict)).train()
 
 
 if __name__ == "__main__":

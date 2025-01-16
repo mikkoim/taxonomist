@@ -17,6 +17,7 @@ def create_tar_files(args):
 
     if args.shuffle:
         import random
+
         random.seed(0)
         random.shuffle(files)
 
@@ -58,6 +59,7 @@ def create_tar_files(args):
     print(f"{len(tar_files)} tar files created")
     print(f"Total files: {total_file_count}")
     print(f"Last tar file has {file_count} files.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
