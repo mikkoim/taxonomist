@@ -8,6 +8,7 @@ def test_taxonomist_checkpoint_existing_path():
 
     assert checkpoint.is_last()
     assert checkpoint.name == "rodi_resnet18_f0_250113-1038-a44d_epoch18_val-loss1.45_last"
+    assert checkpoint.modelname == "rodi_resnet18_f0_250113-1038-a44d"
     assert checkpoint.basename == "rodi_resnet18"
     assert checkpoint.uid == "250113-1038-a44d"
     assert str(checkpoint.folder) == "tests/data"
@@ -26,6 +27,7 @@ def test_taxonomist_checkpoint_nonlast():
 
     assert not checkpoint.is_last()
     assert checkpoint.name == "rodi_resnet18_f0_250113-1038-a44d_epoch18_val-loss1.45"
+    assert checkpoint.modelname == "rodi_resnet18_f0_250113-1038-a44d"
     assert checkpoint.basename == "rodi_resnet18"
     assert checkpoint.uid == "250113-1038-a44d"
     assert str(checkpoint.folder) == "tests/data"
@@ -89,10 +91,8 @@ def test_path_manager_basic_predict(args_basic_predict):
     assert pm.out_folder.is_dir()
     assert str(pm.out_folder) == "tests/data/predictions/rodi_none"
 
+    predict_fpath_cls = pm._create_predict_fpath(task="classification")
+    predict_fpath_fea = pm._create_predict_fpath(task="feature-extraction")
+    assert str(predict_fpath_cls) == "tests/data/predictions/rodi_none/rodi_resnet18_f0_250113-1038-a44d_epoch18_val-loss1.45_last_none.csv"
+    assert str(predict_fpath_fea) == "tests/data/predictions/rodi_none/rodi_resnet18_f0_250113-1038-a44d_None.p.gz"
 
-@pytest.mark.usefixtures("args_basic_train")
-def test_training(args_basic_train):
-    args = args_basic_train
-    tm = TaxonomistModel(args)
-    breakpoint()
-    tm.train()
