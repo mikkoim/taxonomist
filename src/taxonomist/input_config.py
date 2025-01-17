@@ -478,3 +478,106 @@ def add_program_args(parser: argparse.ArgumentParser):
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--smoke_test", action="store_true")
     return parser
+
+def add_train_test_split_args(parser: argparse.ArgumentParser):
+    parser.add_argument(
+        "--csv_path", type=str, help="Path to input csv file", required=True
+    )
+
+    parser.add_argument(
+        "--target_col",
+        type=str,
+        help="Target variable column. Stratification is performed based on this",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--group_col",
+        type=str,
+        help="Group column. Groups are non-overlapping across train-test-val splits",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--n_splits", type=int, help="Number of splits. Default 5", default=5
+    )
+
+    parser.add_argument(
+        "--verbose",
+        type=int,
+        help="If set to 1, prints information on data splits to console",
+        default=1,
+    )
+
+    parser.add_argument(
+        "--random_state",
+        type=int,
+        help="The random seed for the split. Default is 42",
+        default=42,
+    )
+    parser.add_argument(
+        "--shuffle",
+        type=lambda x: bool(strtobool(x)),
+        help="Whether to shuffle each class's samples before splitting into batches.",
+        nargs="?",
+        const=True,
+        default=True,
+        required=False,
+    )
+
+    parser.add_argument("--out_folder", type=str, default=".")
+    return parser
+
+def add_combine_cv_predictions_args(parser: argparse.ArgumentParser):
+    parser.add_argument("--model_folder", type=str)
+    parser.add_argument("--tag", help="The augmentation/dataset identifier", type=str)
+    parser.add_argument("--reference_csv", type=str, required=False)
+    parser.add_argument("--reference_target", type=str)
+    parser.add_argument(
+        "--suffix",
+        help="file suffix that identifies the csv files to be grouped",
+        type=str,
+        default=".csv",
+    )
+    parser.add_argument("--n_folds", type=int, default=5)
+    parser.add_argument("--start_fold", type=int, default=0)
+    parser.add_argument("--around", type=int)
+    return parser
+
+def add_group_predictions_args(parser: argparse.ArgumentParser):
+    parser.add_argument("--predictions", type=str)
+    parser.add_argument("--reference_csv", type=str)
+    parser.add_argument("--reference_target", type=str)
+    parser.add_argument("--fold", type=int)
+    parser.add_argument("--fold_col_prefix", type=str, default="")
+    parser.add_argument("--set", type=str, default="test")
+    parser.add_argument("--reference_group", type=str)
+    parser.add_argument("--agg_func", type=str)
+    parser.add_argument("--suffix", default="", type=str)
+    parser.add_argument("--group_logits", action="store_true")
+    parser.add_argument(
+        "--around", type=int, help="Round the output. Only on regression"
+    )
+    return parser
+
+def add_evaluate_args(parser: argparse.ArgumentParser):
+    parser.add_argument("--predictions", type=str)
+    parser.add_argument("--metric_config", type=str)
+
+    parser.add_argument("--reference_csv", default=None, type=str)
+    parser.add_argument("--reference_target", default=None, type=str)
+    parser.add_argument("--n_folds", type=int, default=5)
+    parser.add_argument("--no_bootstrap", action="store_true")
+    parser.add_argument("--n_bootstrap", type=int, default=1000)
+    parser.add_argument("--bootstrap_alpha", default=0.95)
+    parser.add_argument("--no_save", action="store_true")
+    parser.add_argument("--out_prefix", type=str, default="metrics")
+    parser.add_argument("--around", default=4, type=int)
+    return parser
+
+def add_compare_args(parser: argparse.ArgumentParser):
+    parser.add_argument("--config", type=str)
+    parser.add_argument("--out_folder", type=str, default=None)
+    parser.add_argument("--print_config", action="store_true")
+    parser.add_argument("--print_versions", action="store_true")
+    return parser
