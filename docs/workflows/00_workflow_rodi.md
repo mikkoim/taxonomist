@@ -29,7 +29,7 @@ or validation set.
 
 bash (Unix)
 ```bash
-python scripts/01_train_test_split.py \
+taxonomist train_test_split \
     --csv_path "data/processed/rodi/01_rodi_processed.csv" \
     --target_col "family" \
     --group_col "ind_id" \
@@ -41,7 +41,7 @@ python scripts/01_train_test_split.py \
 Running this training script should take only a few minutes.
 ```bash
 export TMPDIR="data/raw/rodi/"
-python scripts/02_train.py \
+taxonomist train \
     --task "classification" \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_config "conf/user_datasets.py" \
@@ -56,7 +56,7 @@ python scripts/02_train.py \
     --load_to_memory 'False' \
     --model 'resnet18' \
     --opt 'adamw' \
-    --max_epochs 5 \
+    --max_epochs 1 \
     --min_epochs 0 \
     --early_stopping 'False' \
     --early_stopping_patience 0 \
@@ -81,7 +81,7 @@ This training should take around 5-10 minutes on a GPU.
 ```bash
 for i in {0..4}
 do
-python scripts/02_train.py \
+taxonomist predict \
     --no_wandb \
     --task "classification" \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
@@ -127,7 +127,7 @@ Prediction can also produce logit outputs with the parameter `--return_logits 'T
 ```bash
 # This just sets the checkpoint as the first (best) model in the directory above, as the unique identifier is always different.
 export CKPT_PATH=$(find "outputs/rodi/rodi_new_resnet18/f0/" -type f -name "rodi_new_resnet18*.ckpt" ! -name "*_last.ckpt" | head -1)
-python scripts/03_predict.py \
+taxonomist predict \
     --task "classification" \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
@@ -149,7 +149,7 @@ The predictions are saved to `outputs/rodi/rodi_new_resnet18/f0/predictions/rodi
 The output folder is named, based on the augmentation used, this case 'none'. If we want to use test-time-augmentation, the choice of augmentation has an effect on the results:
 
 ```bash
-python scripts/03_predict.py \
+taxonomist predict \
     --task "classification" \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
@@ -175,7 +175,7 @@ Predictions are always saved to the fold folder of `dataset_name/`
 ### Feature extraction
 
 ```bash
-python scripts/03_predict.py \
+taxonomist predict \
     --task "feature-extraction" \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
@@ -207,7 +207,7 @@ for i in {0..4}
 do
 export CKPT_PATH=$(find "outputs/rodi/rodi-allfolds_resnet18/f$i/" -type f -name "rodi-allfolds_resnet18_f$i_*.ckpt" ! -name "*_last.ckpt" | head -1)
 echo $CKPT_PATH >> ckpts_used.txt
-python scripts/03_predict.py \
+taxonomist predict \
     --task "classification" \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
     --dataset_name "rodi" \
@@ -231,7 +231,7 @@ Now we should have prediction files in all five fold folders. The predictions ar
 Since the train-test-split function splits the dataset into test-folds that together make up the entire dataset, we can combine all the predictions from all folds to produce a prediction set for the entire dataset.
 
 ```bash
-python scripts/04_combine_cv_predictions.py \
+taxonomist combine_cv_predictions \
     --model_folder "outputs/rodi/rodi-allfolds_resnet18" \
     --reference_csv "data/processed/rodi/01_rodi_processed_5splits_family.csv" \
     --reference_target "family" \
@@ -249,7 +249,7 @@ Grouping for the single fold
 ```bash
 export CKPT_PATH=$(find "outputs/rodi/rodi_new_resnet18/f0/" -type f -name "rodi_new_resnet18_f0_*.ckpt" ! -name "*_last.ckpt" | head -1)
 export CKPT_STEM=$(basename "$CKPT_PATH" | sed 's/\.[^.]*$//')
-python scripts/04_group_predictions.py \
+taxonomist group_predictions \
     --predictions "outputs/rodi/rodi_new_resnet18/f0/predictions/rodi_none/${CKPT_STEM}_none.csv" \
     --reference_csv "data/processed/rodi/01_rodi_processed_5splits_family.csv" \
     --reference_target "family" \
@@ -261,7 +261,7 @@ outputs are saved to the same folder as predictions.
 
 Grouping for the full dataset
 ```bash
-python scripts/04_group_predictions.py \
+taxonomist group_predictions \
     --predictions "outputs/rodi/rodi-allfolds_resnet18/predictions/rodi-allfolds_resnet18_rodi_none.csv" \
     --reference_csv "data/processed/rodi/01_rodi_processed_5splits_family.csv" \
     --reference_target "family" \
@@ -278,13 +278,13 @@ Let's evaluate both the full dataset prediction with all images separately,
 and grouped by individual.
 ```bash
 # separate
-python scripts/05_evaluate.py \
+taxonomist evaluate \
     --predictions "outputs/rodi/rodi-allfolds_resnet18/predictions/rodi-allfolds_resnet18_rodi_none.csv" \
     --metric_config conf/eval.yaml \
     --no_bootstrap
 
 # grouped
-python scripts/05_evaluate.py \
+taxonomist evaluate \
     --predictions "outputs/rodi/rodi-allfolds_resnet18/predictions/rodi-allfolds_resnet18_rodi_none_grouped.csv" \
     --metric_config conf/eval.yaml
 ```
@@ -299,7 +299,7 @@ Let's calculate metrics for the single fold predictions also so we have two
 outputs in different locations to compare.
 
 ```bash
-python scripts/05_evaluate.py \
+taxonomist evaluate \
     --predictions "outputs/rodi/rodi_new_resnet18/f0/predictions/rodi_none/_${CKPT_STEM}_none_grouped.csv" \
     --metric_config conf/eval.yaml
 ```
@@ -310,7 +310,7 @@ taxonomist makes it easy to compare metrics in different experiments.
 Sometimes results are ran with a model and dataset combination, maybe with a specific grouping or a target label. The comparison script makes it possible to re-use predictions and metrics in different comparison scenarios, for example if one wants to name models differently for tables or figures.
 
 ```bash
-python scripts/06_compare.py \
+taxonomist compare \
         --config 'conf/experiments/rodi_test_experiment.yaml' \
         --out_folder 'results'
 ```

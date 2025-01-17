@@ -106,7 +106,7 @@ def calc_bootstrap(df, metrics, n_repeats, alpha=0.95):
     bs_values = pd.DataFrame(bs_value_list).melt(var_name="metric")
 
     bs_errors = {}
-    for metric in conf.metrics:
+    for metric in metrics:
         # err = np.quantile(np.abs(values[metric] - bs_values.query("metric==@metric")['value'].values), alpha)
         values = bs_values.query("metric==@metric")["value"].values
         q_err = np.quantile(values, [1 - alpha, alpha])

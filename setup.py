@@ -4,5 +4,10 @@ setup(
     name='taxonomist',
     version='0.0.3',
     packages=find_packages(include=['taxonomist']),
-    package_dir={'':'src'}
+    package_dir={'':'src'},
+    entry_points={
+        "console_scripts": [
+            "taxonomist=taxonomist:main"
+        ]
+    }
 )

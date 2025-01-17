@@ -14,3 +14,4 @@ from .utils import (
 from .data import Dataset, LitDataModule, choose_aug
 from .model import Model, LitModule, FeatureExtractionModule
 from .taxonomist_model import TaxonomistModel, TaxonomistModelArguments
+from .cli import main
