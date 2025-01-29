@@ -236,8 +236,7 @@ class LitDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=True if not self.is_iterabledataset else False,
             drop_last=self._drop_last(self.trainset),
-            num_workers=self.cpu_count,
-            persistent_workers=True,
+            num_workers=self.cpu_count
         )
 
         return trainloader
@@ -247,8 +246,7 @@ class LitDataModule(pl.LightningDataModule):
             self.valset,
             batch_size=self.batch_size,
             drop_last=self._drop_last(self.valset),
-            num_workers=self.cpu_count,
-            persistent_workers=True,
+            num_workers=self.cpu_count
         )
 
         return valloader
@@ -258,8 +256,7 @@ class LitDataModule(pl.LightningDataModule):
             self.testset,
             batch_size=self.batch_size,
             drop_last=False,
-            num_workers=self.cpu_count,
-            persistent_workers=True,
+            num_workers=self.cpu_count
         )
 
         return testloader
@@ -844,10 +841,11 @@ def make_webdataset(data_folder: str,
         label_transform (any): Function to apply to the label list.
         transforms (dict): Dictionary of transforms to apply to the dataset.
     """
-    def make_sample(examples, filename2label, label_transform):
+    def make_sample(examples, filename2label, label_transform, transform):
         keys = examples["__key__"]
+        images = examples[image_key]
         return {
-            image_key: examples[image_key],
+            image_key: [transform(x) for x in images],
             "y": label_transform([filename2label[x] for x in keys]),
             "fname": keys,
         }
@@ -858,28 +856,38 @@ def make_webdataset(data_folder: str,
                            split="train",
                            streaming=True,
                            cache_dir="huggingface_cache")
-    dataset = dataset.map(lambda x: make_sample(x, filename2label, label_transform),
-                          batched=True,
-                          batch_size=batch_size)
-    dataset = dataset.rename_column(image_key, "x")
-
     # Make filters
     train_filter = dict(zip(df[image_column], df[fold_column] == "train"))
     val_filter = dict(zip(df[image_column], df[fold_column] == "val"))
     test_filter = dict(zip(df[image_column], df[fold_column] == "test"))
 
     ds = {}
+    ds["train"] = dataset.filter(lambda x: train_filter[x["__key__"]])
+    ds["val"] = dataset.filter(lambda x: val_filter[x["__key__"]])
+    ds["test"] = dataset.filter(lambda x: test_filter[x["__key__"]])
 
-    def map_transform(examples, transform):
-        examples["x"] = [transform(x) for x in examples["x"]]
-        return examples
+    ds["train"] = (ds["train"].map(lambda x: make_sample(x,
+                                                     filename2label,
+                                                     label_transform,
+                                                     transforms["train"]),
+                               batched=True,
+                               batch_size=batch_size)
+                           .rename_column(image_key, "x")
+                           .shuffle(seed=42, buffer_size=shuffle_buffer))
 
-    ds["train"] = (dataset.filter(lambda x: train_filter[x["fname"]])
-                          .map(lambda x: map_transform(x, transforms["train"]), batched=True, batch_size=batch_size)
-                          .shuffle(buffer_size=shuffle_buffer))
+    ds["val"] = (ds["val"].map(lambda x: make_sample(x,
+                                                     filename2label,
+                                                     label_transform,
+                                                     transforms["test"]),
+                               batched=True,
+                               batch_size=batch_size)
+                           .rename_column(image_key, "x"))
 
-    ds["val"] = (dataset.filter(lambda x: val_filter[x["fname"]])
-                        .map(lambda x: map_transform(x, transforms["test"]), batched=True, batch_size=batch_size))
-    ds["test"] = (dataset.filter(lambda x: test_filter[x["fname"]])
-                         .map(lambda x: map_transform(x, transforms["test"]), batched=True, batch_size=batch_size))
+    ds["test"] = (ds["test"].map(lambda x: make_sample(x,
+                                                     filename2label,
+                                                     label_transform,
+                                                     transforms["test"]),
+                               batched=True,
+                               batch_size=batch_size)
+                           .rename_column(image_key, "x"))
     return ds
