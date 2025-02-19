@@ -386,7 +386,7 @@ class TaxonomistModel:
         self.class_map = class_map
         self.n_classes = n_classes
 
-    def _create_data_module(self):
+    def _create_data_module(self, visualize=True):
         """
         Creates a LitDataModule object for the model.
 
@@ -412,7 +412,8 @@ class TaxonomistModel:
             tta_n=self.args.tta_n,
         )
         dm.setup()
-        dm.visualize_datasets(self.path_manager.visualization_path)
+        if visualize:
+            dm.visualize_datasets(self.path_manager.visualization_path)
         return dm
 
     def _load_checkpoint(self, model):

@@ -4,7 +4,6 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from albumentations.pytorch.transforms import ToTensorV2
 from sklearn.metrics import accuracy_score, f1_score
 
 
