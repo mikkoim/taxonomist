@@ -524,6 +524,11 @@ def add_train_test_split_args(parser: argparse.ArgumentParser):
         default=True,
         required=False,
     )
+    parser.add_argument(
+        "--generate_class_map",
+        action="store_true",
+        help="If set, generates a class map based on the target_col",
+    )
 
     parser.add_argument("--out_folder", type=str, default=".")
     return parser

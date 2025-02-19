@@ -15,6 +15,7 @@ class TrainTestSplitArgs():
     random_state: int
     shuffle: bool
     out_folder: str
+    generate_class_map: bool
 
 
 def train_test_split(args: TrainTestSplitArgs):
@@ -22,7 +23,10 @@ def train_test_split(args: TrainTestSplitArgs):
     out_folder = Path(args.out_folder)
     out_folder.mkdir(exist_ok=True, parents=True)
 
-    df = pd.read_csv(csv_path)
+    try:
+        df = pd.read_csv(csv_path)
+    except:
+        df = pd.read_parquet(csv_path)
 
     # Splits
     try:
@@ -107,3 +111,11 @@ def train_test_split(args: TrainTestSplitArgs):
                     file.writelines([p])
                 print()
                 file.write("\n\n")
+
+    if args.generate_class_map:
+        classes = sorted(df[args.target_col].unique())
+        class_map_fname = out_folder / (out_fname.stem + "_class_map.txt")
+        with open(class_map_fname, "w") as file:
+            for c in classes:
+                file.write(f"{c}\n")
+        print(f"Saved class map to {class_map_fname}")
