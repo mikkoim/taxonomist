@@ -5,6 +5,7 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import accuracy_score, f1_score
+from .utils import load_module_from_path
 
 
 def mse(output, target):
@@ -100,6 +101,8 @@ class LitModule(pl.LightningModule):
     def __init__(
         self,
         model: str,
+        custom_model: bool = False,
+        dataset_config_path: str = None,
         freeze_base: bool = False,
         pretrained: bool = True,
         n_classes: int = 1,
@@ -131,13 +134,23 @@ class LitModule(pl.LightningModule):
         """
         super().__init__()
         self.save_hyperparameters(ignore=["label_transform"])
-        self.example_input_array = torch.randn((1, 3, 224, 224))
-        self.model = Model(
-            model=model,
-            freeze_base=freeze_base,
-            pretrained=pretrained,
-            n_classes=n_classes,
-        )
+        if custom_model:
+            self.model = self._setup_custom_model(
+                dataset_config_path=dataset_config_path,
+                model=model,
+                freeze_base=freeze_base,
+                pretrained=pretrained,
+                n_classes=n_classes,
+            )
+        else:
+            self.example_input_array = torch.randn((1, 3, 224, 224))
+            self.model = self._setup_timm_model(
+                model=model,
+                freeze_base=freeze_base,
+                pretrained=pretrained,
+                n_classes=n_classes,
+            )
+
         self.lr = lr
         self.lr_scheduler = lr_scheduler
         self.label_transform = label_transform
@@ -153,6 +166,19 @@ class LitModule(pl.LightningModule):
         self.validation_step_outputs = []
         self.test_step_outputs = []
         self.batch_size = None
+    
+    def _setup_timm_model(self, model, freeze_base, pretrained, n_classes):
+        return Model(
+            model=model,
+            freeze_base=freeze_base,
+            pretrained=pretrained,
+            n_classes=n_classes
+        )
+    
+    def _setup_custom_model(self, dataset_config_path, model, freeze_base, pretrained, n_classes):
+        config_module = load_module_from_path(dataset_config_path)
+        model = config_module.return_custom_model(model, freeze_base, pretrained, n_classes)
+        return model
 
     def predict_func(self, output):
         """Processes the output for prediction"""
@@ -313,6 +339,7 @@ class FeatureExtractionModule(pl.LightningModule):
         self,
         feature_extraction_mode: str,
         model: str,
+        custom_model: bool = False,
         freeze_base: bool = False,
         pretrained: bool = True,
         n_classes: int = 0,

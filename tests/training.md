@@ -212,7 +212,7 @@ python scripts/03_predict.py \
     --label "family" \
     --fold 0 \
     --class_map "data/processed/rodi/rodi_label_map.txt" \
-    --timm_model_name 'mobilenetv3_large_100.ra_in1k' \
+    --model_name 'mobilenetv3_large_100.ra_in1k' \
     --imsize 224 \
     --batch_size 1024 \
     --aug 'none' \

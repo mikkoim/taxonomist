@@ -24,7 +24,8 @@ class TaxonomistModelArguments:
     tta: bool = False
     tta_n: int = 5
 
-    timm_model_name: str = "mobilenetv3_large_100.ra_in1k"
+    model_name: str = "mobilenetv3_large_100.ra_in1k"
+    custom_model: bool = False
     criterion: str = None
     ckpt_path: Optional[str] = None  # required if resume=True
     freeze_base: bool = False
@@ -218,14 +219,25 @@ def add_dataloader_args(parser: argparse.ArgumentParser):
 
 def add_model_args(parser: argparse.ArgumentParser):
     parser.add_argument(
-        "--timm_model_name",
+        "--model_name",
         type=str,
         help="The model name from the timm library",
         default="mobilenetv3_large_100.ra_in1k",
         required=False,
     )
     # Alias for above
-    parser.add_argument("--model", dest="timm_model_name")
+    parser.add_argument("--model", dest="model_name")
+    parser.add_argument(
+        "--custom_model",
+        type=lambda x: bool(strtobool(x)),
+        nargs="?",
+        const=True,
+        help="If True, a custom model is loaded using the 'return_model' function "
+        "from the dataset config file. If False, the default behavior of using "
+        "a timm model is used.",
+        default=False,
+        required=False,
+    )
 
     parser.add_argument(
         "--criterion", type=str, help="The loss function", default=None, required=False

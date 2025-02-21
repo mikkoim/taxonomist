@@ -49,7 +49,7 @@ def test_path_manager_basic_train(args_basic_train):
     assert isinstance(pm.out_folder, Path)
     assert pm.out_folder.exists()
     assert pm.out_folder.is_dir()
-    assert str(pm.out_folder) == "outputs/rodi/rodi_resnet18/f0"
+    assert str(pm.out_folder) == "test_outputs/rodi/rodi_resnet18/f0"
 
 @pytest.mark.usefixtures("args_basic_resume_train")
 def test_path_manager_basic_train(args_basic_resume_train):
@@ -69,7 +69,7 @@ def test_path_manager_basic_train(args_basic_resume_train):
     assert isinstance(pm.out_folder, Path)
     assert pm.out_folder.exists()
     assert pm.out_folder.is_dir()
-    assert str(pm.out_folder) == "outputs/rodi/rodi_resnet18/f0"
+    assert str(pm.out_folder) == "test_outputs/rodi/rodi_resnet18/f0"
 
 @pytest.mark.usefixtures("args_basic_predict")
 def test_path_manager_basic_predict(args_basic_predict):

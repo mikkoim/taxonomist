@@ -233,7 +233,7 @@ class PathManager:
             out_folder = (
                 Path(self.args.out_folder)
                 / str(self.args.dataset_name)
-                / str(self.args.timm_model_name)
+                / str(self.args.model_name)
                 / f"f{self.args.fold}"
                 / folder_name
                 / self.tag
@@ -284,11 +284,11 @@ class PathManager:
         if self.stage == "training":
             if self.args.resume:
                 if (
-                    f"{self.args.out_prefix}_{self.args.timm_model_name}"
+                    f"{self.args.out_prefix}_{self.args.model_name}"
                     != self.ckpt.basename
                 ):
                     raise ValueError(
-                        f"Input arguments {self.args.out_prefix} and {self.args.timm_model_name} do not match checkpoint basename {self.ckpt.basename}."
+                        f"Input arguments {self.args.out_prefix} and {self.args.model_name} do not match checkpoint basename {self.ckpt.basename}."
                         " Please double check you are resuming the correct model"
                     )
 
@@ -319,7 +319,7 @@ class PathManager:
         """
         uid = datetime.now().strftime("%y%m%d-%H%M") + f"-{str(uuid.uuid4())[:4]}"
         self.uid = uid
-        self.basename = f"{self.args.out_prefix}_{self.args.timm_model_name}"
+        self.basename = f"{self.args.out_prefix}_{self.args.model_name}"
         self.modelname = f"{self.basename}_f{self.args.fold}_{uid}"
 
 
@@ -452,7 +452,9 @@ class TaxonomistModel:
         self._create_opt_params()
 
         model = LitModule(
-            model=self.args.timm_model_name,
+            model=self.args.model_name,
+            custom_model=self.args.custom_model,
+            dataset_config_path=self.args.dataset_config_path,
             freeze_base=self.args.freeze_base,
             pretrained=self.args.pretrained,
             criterion=self.args.criterion,
@@ -748,7 +750,7 @@ class TaxonomistModel:
         self.path_manager = PathManager("training", self.args, self.ckpt)
 
         # Setup the data and the model
-        dm = self._create_data_module()
+        dm = self._create_data_module(visualize=False if self.args.custom_dataset else True)
         model = self._create_model(stage="training")
         callbacks = self._create_callbacks()
 
@@ -776,7 +778,7 @@ class TaxonomistModel:
     def predict(self):
         self.path_manager = PathManager("prediction", self.args, self.ckpt)
 
-        dm = self._create_data_module()
+        dm = self._create_data_module(visualize=False if self.args.custom_dataset else True)
         model = self._create_model(stage="prediction")
         trainer = self._create_trainer(stage="prediction")
 
