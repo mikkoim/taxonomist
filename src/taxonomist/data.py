@@ -528,7 +528,8 @@ def choose_aug(aug, args):
             aug2 = A.Compose(
                 [
                     A.Resize(imsize, imsize, p=1.0),
-                    A.Flip(),
+                    A.VerticalFlip(),
+                    A.HorizontalFlip(),
                     A.RandomRotate90(p=0.5),
                     a_end_tf,
                 ]
@@ -648,7 +649,8 @@ def choose_aug(aug, args):
         transform_train = A.Compose(
             [
                 A.Resize(imsize, imsize, p=1.0),
-                A.Flip(),
+                A.VerticalFlip(),
+                A.HorizontalFlip(),
                 A.RandomRotate90(p=1.0),
                 A.Rotate(p=0.5, border_mode=0),
                 a_end_tf,
@@ -669,7 +671,8 @@ def choose_aug(aug, args):
         transform_train = A.Compose(
             [
                 keep_aspect_resize if keep_aspect else A.Resize(imsize, imsize, p=1.0),
-                A.Flip(),
+                A.VerticalFlip(),
+                A.HorizontalFlip(),
                 A.RandomRotate90(p=0.5) if rotate else A.NoOp(),
                 a_end_tf,
             ]
