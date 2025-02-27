@@ -6,6 +6,7 @@ from tqdm import tqdm
 from taxonomist.data import make_webdataset
 from torch import nn
 import open_clip
+from datasets import load_dataset
 
 """
 Defines custom functions for reading dataset data from train-test-splitted csv-files,
@@ -104,6 +105,9 @@ def return_custom_datasets(data_folder: str,
         datasets = process_wds_dataset(
             data_folder, csv_path, fold, label, label_transform, transforms
         )
+    elif dataset_name == "aquamonitor-jyu-regression":
+        datasets = process_aquamonitor_jyu_regression(label, transforms)
+
     elif dataset_name == "my_custom_dataset":
         # Define your dataset here
         datasets = {"train": None, "val": None, "test": None}
@@ -214,6 +218,32 @@ def process_wds_dataset(data_folder,
                          transforms=transforms)
 
     return ds
+
+def process_aquamonitor_jyu_regression(label, transforms):
+    import torch
+    ds = load_dataset("mikkoim/aquamonitor-jyu", cache_dir="huggingface_cache")
+    metadata = pd.read_parquet("https://huggingface.co/datasets/mikkoim/aquamonitor-jyu/resolve/main/aquamonitor-jyu.parquet.gzip")
+
+    metadata["img"] = metadata["img"].str.removesuffix(".jpg")
+    label_dict = dict(zip(metadata["img"], metadata[label]))
+
+    tf_train = transforms["train"]
+    tf_test = transforms["test"]
+
+    def train_transform(batch):
+        return {"fname": batch["__key__"],
+                "x": [tf_train(x) for x in batch["jpg"]],
+                "y": torch.as_tensor([label_dict[x] for x in batch["__key__"]], dtype=torch.float32)}
+
+    def test_transform(batch):
+        return {"fname": batch["__key__"],
+                "x": [tf_test(x) for x in batch["jpg"]],
+                "y": torch.as_tensor([label_dict[x] for x in batch["__key__"]], dtype=torch.float32)}
+    
+    ds_train = ds["train"].with_transform(train_transform)
+    ds_val = ds["validation"].with_transform(test_transform)
+    return {"train": ds_train, "val": ds_val, "test": ds_val}
+
 
 def process_split_csv_aquamonitor(data_folder, csv_path, set_, fold, label):
     df0 = pd.read_parquet(csv_path)
