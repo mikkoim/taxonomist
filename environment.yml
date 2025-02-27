@@ -14,7 +14,7 @@ dependencies:
   - wandb
   - transformers
   - huggingface_hub
-  - datasets
+  - datasets>=3.0.0
   - open-clip-torch
   - torchmetrics
   - onnx
