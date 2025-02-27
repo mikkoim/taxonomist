@@ -410,6 +410,8 @@ class TaxonomistModel:
             aug=self.args.aug,
             load_to_memory=self.args.load_to_memory,
             tta_n=self.args.tta_n,
+            n_classes=self.n_classes,
+            mixup=self.args.mixup,
         )
         dm.setup()
         if visualize:
@@ -463,6 +465,7 @@ class TaxonomistModel:
             lr=self.args.lr,
             lr_scheduler=self.lr_scheduler_params,
             label_transform=self.class_map["inv"],
+            no_train_metrics=True if self.args.mixup else False,
         )
 
         if self.has_checkpoint and (self.args.resume is False):

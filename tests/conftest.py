@@ -37,6 +37,38 @@ def args_basic_train():
     return args
 
 @pytest.fixture
+def args_basic_train_regression():
+    args = TaxonomistModelArguments(
+        no_wandb=True,
+        smoke_test=True,
+        task="regression",
+        dataset_config_path="conf/user_datasets.py",
+        custom_dataset=True,
+        dataset_name="aquamonitor-jyu-regression",
+        label_column="log_weight",
+        fold=0,
+        imsize=224,
+        batch_size=8,
+        aug='trivialaugment',
+        load_to_memory=False,
+        tta=False,
+        model_name='mobilenetv3_small_075.lamb_in1k',
+        opt='adamw',
+        max_epochs=2,
+        min_epochs=0,
+        early_stopping=True,
+        early_stopping_patience=10,
+        criterion='mse',
+        lr=0.0001,
+        auto_lr=False,
+        log_dir='am-jyu-test',
+        out_folder='test_outputs',
+        out_prefix='regression',
+        deterministic=True
+    )
+    return args
+
+@pytest.fixture
 def args_train_custom_model():
     args = TaxonomistModelArguments(
         no_wandb=True,
@@ -103,6 +135,41 @@ def args_basic_resume_train():
         deterministic=True,
         ckpt_path="tests/data/rodi_resnet18_f0_250113-1038-a44d_epoch18_val-loss1.45_last.ckpt",
         resume=True
+    )
+    return args
+
+@pytest.fixture
+def args_basic_train_with_mixup():
+    args = TaxonomistModelArguments(
+        no_wandb=True,
+        smoke_test=True,
+        task="classification",
+        dataset_config_path="conf/user_datasets.py",
+        data_folder="data/raw/rodi/Induced_Organism_Drift_2022",
+        dataset_name="rodi",
+        csv_path="data/processed/rodi/01_rodi_processed_5splits_family.csv",
+        label_column="family",
+        fold=0,
+        class_map_name="data/processed/rodi/rodi_label_map.txt",
+        imsize=224,
+        batch_size=8,
+        aug='trivialaugment',
+        load_to_memory=False,
+        tta=False,
+        model_name='mobilenetv3_small_075.lamb_in1k',
+        opt='adamw',
+        max_epochs=2,
+        min_epochs=0,
+        early_stopping=True,
+        early_stopping_patience=10,
+        criterion='cross-entropy',
+        lr=0.0001,
+        auto_lr=False,
+        log_dir='roditest',
+        out_folder='test_outputs',
+        out_prefix='rodi',
+        deterministic=True,
+        mixup=True
     )
     return args
 

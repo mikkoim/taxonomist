@@ -27,7 +27,7 @@ def l1(output, target):
 
 
 def cross_entropy(output, target):
-    loss = F.cross_entropy(output, target.long())
+    loss = F.cross_entropy(output, target)
     return loss
 
 
@@ -111,6 +111,7 @@ class LitModule(pl.LightningModule):
         lr: float = 1e-4,
         lr_scheduler: dict = None,
         label_transform=None,
+        no_train_metrics: bool = False,
     ):
         """Initialize the module
         Args:
@@ -131,6 +132,8 @@ class LitModule(pl.LightningModule):
             lr_scheduler (dict): dictionary containing learning rate scheduler parameters
 
             label_transform: possible transform that is done for the output labels
+
+            no_train_metrics (bool): if True, only loss is logged during training
         """
         super().__init__()
         self.save_hyperparameters(ignore=["label_transform"])
@@ -156,6 +159,7 @@ class LitModule(pl.LightningModule):
         self.label_transform = label_transform
         self.criterion = choose_criterion(criterion)
         self.opt_args = opt
+        self.no_train_metrics = no_train_metrics
 
         if criterion == "cross-entropy":
             self.is_classifier = True
@@ -267,6 +271,9 @@ class LitModule(pl.LightningModule):
         - Calls common_epoch_end method for additional processing.
         - Clears the list of training step outputs.
         """
+        if self.no_train_metrics:
+            self.training_step_outputs.clear()
+            return
         outputs = self.training_step_outputs
         _, _ = self.common_epoch_end(outputs, "train")
         self.training_step_outputs.clear()

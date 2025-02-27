@@ -142,6 +142,7 @@ dmypy.json
 /old
 /outputs
 /TykkyEnv
+/huggingface_cache
 *.sif
 *.txt
 *.pt

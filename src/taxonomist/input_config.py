@@ -6,11 +6,11 @@ from typing import Optional, Union, List
 
 @dataclass(frozen=True)
 class TaxonomistModelArguments:
-    task: str
-    data_folder: str
-    dataset_config_path: str
-    dataset_name: str
-    csv_path: str
+    task: str = "classification"
+    data_folder: str = None
+    dataset_config_path: str = None
+    dataset_name: str = None
+    csv_path: str = None
     custom_dataset: bool = False
 
     label_column: Optional[str] = None
@@ -20,6 +20,7 @@ class TaxonomistModelArguments:
     imsize: int = None
     batch_size: int = 32
     aug: str = "none"
+    mixup: bool = False
     load_to_memory: bool = False
     tta: bool = False
     tta_n: int = 5
@@ -81,14 +82,30 @@ def validate_arguments(args: TaxonomistModelArguments):
     Raises:
         ValueError: If the arguments are invalid.
     """
+
+    # Check that the ckpt_path is set if resume is True
     if args.resume:
         if args.ckpt_path is None:
             raise ValueError("When resuming, a ckpt_path must be set")
 
+    # Check that the task is one of the allowed values
     if not args.task in ["classification", "regression", "feature-extraction"]:
         raise ValueError(
             "task must be 'classification', 'regression', or 'feature-extraction'"
         )
+    
+    # Check that mixup is not used with a custom model
+    if args.aug == "mixup" and args.custom_model:
+        raise ValueError("Mixup augmentation is not supported with custom models. "
+                         "Workaround is to define mixup in a custom dataset function.")
+    
+    # Check that mixup is only used with classification
+    if args.aug == "mixup" and args.task != "classification":
+        raise ValueError("Mixup augmentation is only supported for classification tasks.")
+    
+    # Check that if the task is regression, the criterion is not cross-entropy
+    if args.task == "regression" and args.criterion == "cross-entropy":
+        raise ValueError("Cross-entropy loss is not supported for regression tasks.")
 
 
 def add_dataset_args(parser: argparse.ArgumentParser):
@@ -97,7 +114,7 @@ def add_dataset_args(parser: argparse.ArgumentParser):
         type=str,
         help="Folder where the data can be found. This folder is "
         "used with the csv_path to produce final filenames for training",
-        required=True,
+        required=False,
     )
     parser.add_argument(
         "--dataset_config_path",
@@ -105,7 +122,7 @@ def add_dataset_args(parser: argparse.ArgumentParser):
         help="The path to the dataset config file that defines data loading functions. "
         "The file must contain the function 'preprocess_dataset' that specifies "
         "a python function that loads filenames and labels for the dataset",
-        required=True,
+        required=False,
     )
     parser.add_argument(
         "--dataset_name",
@@ -113,7 +130,7 @@ def add_dataset_args(parser: argparse.ArgumentParser):
         help="The dataset name that is used to select the function in "
         "'dataset_config_path' that "
         "determines how data should be loaded",
-        required=True,
+        required=False,
     )
     parser.add_argument(
         "--csv_path",
@@ -123,7 +140,7 @@ def add_dataset_args(parser: argparse.ArgumentParser):
         "Used along 'data_folder to produce final filenames for training. "
         "The csv should contain train-test-validation split info for all "
         "cross-validation folds",
-        required=True,
+        required=False,
     )
     parser.add_argument(
         "--custom_dataset",
@@ -187,6 +204,15 @@ def add_dataloader_args(parser: argparse.ArgumentParser):
         type=str,
         help="Augmentation that is applied to the images",
         default="none",
+        required=False,
+    )
+    parser.add_argument(
+        "--mixup",
+        type=lambda x: bool(strtobool(x)),
+        nargs="?",
+        const=True,
+        help="If True, MixUp augmentation is applied",
+        default=False,
         required=False,
     )
     parser.add_argument(
@@ -458,7 +484,8 @@ def add_program_args(parser: argparse.ArgumentParser):
         type=str,
         help="A task specifier. In predict stage, can be 'predict' or 'feature-extraction'"
         "In train stage, can be 'classification' or 'regression'",
-        required=True,
+        default="classification",
+        required=False,
     )
     parser.add_argument(
         "--log_dir",

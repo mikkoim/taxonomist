@@ -15,9 +15,10 @@ import math
 from typing import Dict, List, Optional, Tuple
 
 from torch import Tensor
-from torch.utils.data import IterableDataset
+from torch.nn import functional as F
+from torch.utils.data import IterableDataset, default_collate
 
-from torchvision.transforms import functional as F, InterpolationMode
+from torchvision.transforms import functional as TF, InterpolationMode, v2
 from datasets import load_dataset
 
 from .utils import load_module_from_path, read_image, visualize_dataset
@@ -42,12 +43,14 @@ class Dataset(torch.utils.data.Dataset):
         preload_transform=None,
         transform=None,
         load_to_memory=True,
+        return_long=True
     ):
         self.filenames = filenames
         self.y = y
         self.preload_transform = preload_transform
         self.transform = transform
         self.mem_dataset = None
+        self.return_long = return_long
 
         if load_to_memory:
             self.mem_dataset = []
@@ -69,7 +72,10 @@ class Dataset(torch.utils.data.Dataset):
             X = self.transform(X)
 
         if self.y is not None:
-            y = torch.as_tensor(self.y[index], dtype=torch.float32)
+            if self.return_long:
+                y = torch.as_tensor(self.y[index], dtype=torch.long)
+            else:
+                y = torch.as_tensor(self.y[index], dtype=torch.float32)
         else:
             y = None
         batch = {"x": X, "y": y, "fname": str(self.filenames[index])}
@@ -101,6 +107,7 @@ class LitDataModule(pl.LightningDataModule):
         label_transform (any): Function to apply to the label list.
         load_to_memory (bool): Whether to load the images to memory.
         tta_n (int): The number of test-time-augmentation rounds.
+        mixup (bool): Whether to use mixup.
     """
 
     def __init__(
@@ -118,6 +125,8 @@ class LitDataModule(pl.LightningDataModule):
         label_transform=None,
         load_to_memory: bool = False,
         tta_n: int = 5,
+        n_classes: int = None,
+        mixup: bool = False,
     ):
         super().__init__()
         self.data_folder = data_folder
@@ -136,6 +145,8 @@ class LitDataModule(pl.LightningDataModule):
         self.label_transform = label_transform
         self.load_to_memory = load_to_memory
         self.tta_n = tta_n
+        self.n_classes = n_classes
+        self.mixup = mixup
         self.is_iterabledataset = None
 
         self.cpu_count = int(
@@ -151,6 +162,8 @@ class LitDataModule(pl.LightningDataModule):
             self._setup_custom_dataset()
         else:
             self._setup_filepath_dataset()
+        
+        self._setup_mixup()
 
     def _setup_filepath_dataset(self):
         # Loads the module that defines dataset loading functions
@@ -179,6 +192,7 @@ class LitDataModule(pl.LightningDataModule):
             preload_transform=None,
             transform=self.tf_train,
             load_to_memory=self.load_to_memory,
+            return_long=False if self.n_classes == 1 else True
         )
 
         self.valset = Dataset(
@@ -187,6 +201,7 @@ class LitDataModule(pl.LightningDataModule):
             preload_transform=None,
             transform=self.tf_test,
             load_to_memory=self.load_to_memory,
+            return_long=False if self.n_classes == 1 else True
         )
 
         self.testset = Dataset(
@@ -195,6 +210,7 @@ class LitDataModule(pl.LightningDataModule):
             preload_transform=None,
             transform=self.tf_test,
             load_to_memory=self.load_to_memory,
+            return_long=False if self.n_classes == 1 else True
         )
 
         tta_list = [self.testset] + [
@@ -204,6 +220,7 @@ class LitDataModule(pl.LightningDataModule):
                 preload_transform=None,
                 transform=self.tf_train,
                 load_to_memory=self.load_to_memory,
+                return_long=False if self.n_classes == 1 else True
             )
             for _ in range(self.tta_n - 1)
         ]
@@ -229,6 +246,19 @@ class LitDataModule(pl.LightningDataModule):
 
         if isinstance(self.trainset, IterableDataset):
             self.is_iterabledataset = True
+    
+    def _setup_mixup(self):
+        if self.mixup:
+            mixup = v2.MixUp(num_classes=self.n_classes)
+            def mixup_collate_fn(batch):
+                x = torch.stack([b["x"] for b in batch])
+                y = torch.stack([b["y"] for b in batch]).long()
+                fname = [b["fname"] for b in batch]
+                x, y = mixup(x, y)
+                return {"x": x, "y": y, "fname": fname}
+            self.collate_fn = mixup_collate_fn
+        else:
+            self.collate_fn = None
 
     def train_dataloader(self):
         trainloader = torch.utils.data.DataLoader(
@@ -236,7 +266,8 @@ class LitDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=True if not self.is_iterabledataset else False,
             drop_last=self._drop_last(self.trainset),
-            num_workers=self.cpu_count
+            num_workers=self.cpu_count,
+            collate_fn=self.collate_fn
         )
 
         return trainloader
@@ -310,7 +341,7 @@ def _custom_apply_op(
         # compared to
         # torchvision:      (1, tan(level), 0, 0, 1, 0)
         # https://github.com/pytorch/vision/blob/0c2373d0bba3499e95776e7936e207d8a1676e65/torchvision/transforms/functional.py#L976
-        img = F.affine(
+        img = TF.affine(
             img,
             angle=0.0,
             translate=[0, 0],
@@ -323,7 +354,7 @@ def _custom_apply_op(
     elif op_name == "ShearY":
         # magnitude should be arctan(magnitude)
         # See above
-        img = F.affine(
+        img = TF.affine(
             img,
             angle=0.0,
             translate=[0, 0],
@@ -334,7 +365,7 @@ def _custom_apply_op(
             center=[0, 0],
         )
     elif op_name == "TranslateX":
-        img = F.affine(
+        img = TF.affine(
             img,
             angle=0.0,
             translate=[int(magnitude), 0],
@@ -344,7 +375,7 @@ def _custom_apply_op(
             fill=fill,
         )
     elif op_name == "TranslateY":
-        img = F.affine(
+        img = TF.affine(
             img,
             angle=0.0,
             translate=[0, int(magnitude)],
@@ -354,25 +385,25 @@ def _custom_apply_op(
             fill=fill,
         )
     elif op_name == "Rotate":
-        img = F.rotate(img, magnitude, interpolation=interpolation, fill=fill)
+        img = TF.rotate(img, magnitude, interpolation=interpolation, fill=fill)
     elif op_name == "Brightness":
-        img = F.adjust_brightness(img, 1.0 + magnitude)
+        img = TF.adjust_brightness(img, 1.0 + magnitude)
     elif op_name == "Color":
-        img = F.adjust_saturation(img, 1.0 + magnitude)
+        img = TF.adjust_saturation(img, 1.0 + magnitude)
     elif op_name == "Contrast":
-        img = F.adjust_contrast(img, 1.0 + magnitude)
+        img = TF.adjust_contrast(img, 1.0 + magnitude)
     elif op_name == "Sharpness":
-        img = F.adjust_sharpness(img, 1.0 + magnitude)
+        img = TF.adjust_sharpness(img, 1.0 + magnitude)
     elif op_name == "Posterize":
-        img = F.posterize(img, int(magnitude))
+        img = TF.posterize(img, int(magnitude))
     elif op_name == "Solarize":
-        img = F.solarize(img, magnitude)
+        img = TF.solarize(img, magnitude)
     elif op_name == "AutoContrast":
-        img = F.autocontrast(img)
+        img = TF.autocontrast(img)
     elif op_name == "Equalize":
-        img = F.equalize(img)
+        img = TF.equalize(img)
     elif op_name == "Invert":
-        img = F.invert(img)
+        img = TF.invert(img)
     elif op_name == "Identity":
         pass
     else:
@@ -421,7 +452,7 @@ class TrivialAugmentWideNoWarp(torch.nn.Module):
             PIL Image or Tensor: Transformed image.
         """
         fill = self.fill
-        channels, height, width = F.get_dimensions(img)
+        channels, height, width = TF.get_dimensions(img)
         if isinstance(img, Tensor):
             if isinstance(fill, (int, float)):
                 fill = [float(fill)] * channels
