@@ -81,7 +81,7 @@ This training should take around 5-10 minutes on a GPU.
 ```bash
 for i in {0..4}
 do
-taxonomist predict \
+taxonomist train \
     --no_wandb \
     --task "classification" \
     --data_folder "$TMPDIR/Induced_Organism_Drift_2022" \
