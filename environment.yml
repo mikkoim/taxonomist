@@ -3,23 +3,27 @@ channels:
   - pytorch
   - nvidia
   - conda-forge
-  - defaults
 dependencies:
-  - python=3.9
+  - python=3.11
   
   # DL
   - pytorch
   - torchvision
   - pytorch-cuda
   - lightning
-  - optuna
   - wandb
   - transformers
   - huggingface_hub
   - datasets
+  - open-clip-torch
   - torchmetrics
   - onnx
   - onnxruntime
+  - timm
+  - albumentations
+  - omegaconf
+  - bigtree
+  - pycocotools
 
   # DS
   - numpy
@@ -27,16 +31,14 @@ dependencies:
   - scikit-learn
   - scikit-image
   - pandas
-  - pandas-profiling
   - opencv
   - pillow>=6.0.0
   - numba
-  - dask
-  - dask-ml
   - joblib
+  - xarray
 
   # Plotting + viz
-  - matplotlib==3.7.3
+  - matplotlib
   - seaborn
   - bokeh
   - plotly
@@ -58,12 +60,3 @@ dependencies:
   - openpyxl
 
   - pip
-  - pip:
-    - timm
-    - albumentations
-    - omegaconf
-    - pygbif
-    - biopython
-    - networkx[default]
-    - bigtree
-    - pycocotools
