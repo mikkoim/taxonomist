@@ -505,7 +505,7 @@ class TaxonomistModel:
         else:
             model = FeatureExtractionModule(
                 feature_extraction_mode=self.args.feature_extraction,
-                model=self.args.model,
+                model=self.args.model_name,
                 pretrained=True,
             )
         model.freeze()
