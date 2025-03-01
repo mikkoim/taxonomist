@@ -61,10 +61,10 @@ class CombineCVPredictionsArgs:
     tag: str
     reference_csv: str
     reference_target: str
-    suffix: str
-    n_folds: int
-    start_fold: int
-    around: int
+    suffix: str = ".csv"
+    n_folds: int = 5
+    start_fold: int = 0
+    around: int = None
 
 def combine_cv_predictions(args: CombineCVPredictionsArgs):
     model_folder = Path(args.model_folder)
@@ -86,7 +86,7 @@ def combine_cv_predictions(args: CombineCVPredictionsArgs):
         csvs_in_folder = list(pred_folder.glob(f"*{args.suffix}"))
         if len(csvs_in_folder) != 1:
             raise ValueError(
-                f"The number of files that match the suffix is {len(csvs_in_folder)}. Ensure the suffix uniquely identifies the files to be combined"
+                f"The number of files that match the suffix {args.suffix} is {len(csvs_in_folder)}: {list(csvs_in_folder)}. Ensure the suffix uniquely identifies the files to be combined. Remember to include the file extension."
             )
         f = csvs_in_folder[0]
         df_fold = pd.read_csv(f)
@@ -172,14 +172,14 @@ class GroupPredictionsArgs:
     predictions: str
     reference_csv: str
     reference_target: str
-    fold: int
-    fold_col_prefix: str
-    set: str
     reference_group: str
-    group_logits: bool
-    agg_func: str
-    suffix: str
-    around: int
+    fold: int = None
+    fold_col_prefix: str = ""
+    set: str = "test"
+    group_logits: bool = False
+    agg_func: str = "mode"
+    suffix: str = ""
+    around: int = None
 
 def group_predictions(args: GroupPredictionsArgs):
     out_folder = Path(args.predictions).parents[0]

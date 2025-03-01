@@ -1,3 +1,5 @@
+import os
+os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 from .input_config import (
     add_dataset_args,
     add_dataloader_args,

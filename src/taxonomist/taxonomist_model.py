@@ -55,6 +55,7 @@ class TaxonomistCheckpoint:
         self.ckpt = torch.load(
             self.ckpt_path,
             map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+            weights_only=True
         )
 
     def __repr__(self):

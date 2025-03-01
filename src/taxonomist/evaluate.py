@@ -121,15 +121,15 @@ def calc_bootstrap(df, metrics, n_repeats, alpha=0.95):
 class EvaluateArgs:
     predictions: str
     metric_config: str
-    reference_csv: str
-    reference_target: str
-    n_folds: int
-    n_bootstrap: int
-    no_bootstrap: bool
-    bootstrap_alpha: float
-    no_save: bool
-    out_prefix: str
-    around: int
+    reference_csv: str = None
+    reference_target: str = None
+    n_folds: int = 5
+    n_bootstrap: int = 1000
+    no_bootstrap: bool = False
+    bootstrap_alpha: float = 0.95
+    no_save: bool = False
+    out_prefix: str = "metrics"
+    around: int = None
 
 def evaluate(args: EvaluateArgs):
     csv_path = Path(args.predictions)

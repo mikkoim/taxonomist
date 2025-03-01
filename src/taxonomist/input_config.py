@@ -616,7 +616,7 @@ def add_evaluate_args(parser: argparse.ArgumentParser):
     parser.add_argument("--bootstrap_alpha", default=0.95)
     parser.add_argument("--no_save", action="store_true")
     parser.add_argument("--out_prefix", type=str, default="metrics")
-    parser.add_argument("--around", default=4, type=int)
+    parser.add_argument("--around", default=None, type=int)
     return parser
 
 def add_compare_args(parser: argparse.ArgumentParser):
