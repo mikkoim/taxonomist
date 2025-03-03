@@ -73,6 +73,8 @@ def combine_cv_predictions(args: CombineCVPredictionsArgs):
 
     if args.reference_csv:
         ref_df = pd.read_csv(args.reference_csv)
+        if args.reference_target not in ref_df.columns:
+            raise ValueError(f"Reference target not in reference csv columns: {ref_df.columns.tolist()}")
 
     csv_list = []
     idx_list = []
@@ -110,9 +112,15 @@ def combine_cv_predictions(args: CombineCVPredictionsArgs):
         df = df.sort_index()
 
         if df.y_true.dtype == "O":
-            assert np.all(ref_df[args.reference_target] == df.y_true)
+            if not np.all(ref_df[args.reference_target] == df.y_true):
+                raise ValueError(f"The data does not match the reference table\n"
+                                 f"ref target:\n{ref_df[args.reference_target]}\ndata y_true:\n"
+                                 f"{df.y_true}")
         else:
-            assert np.allclose(ref_df[args.reference_target], df.y_true)
+            if not np.allclose(ref_df[args.reference_target], df.y_true):
+                raise ValueError(f"The data does not match the reference table\n"
+                                 f"ref target:\n{ref_df[args.reference_target]}\ndata y_true:\n"
+                                 f"{df.y_true}")
 
     # Possible rounding
     if args.around:
