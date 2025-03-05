@@ -198,9 +198,25 @@ class LitModule(pl.LightningModule):
     def configure_optimizers(self):
         """Sets optimizers based on a dict passed as argument"""
         if self.opt_args["name"] == "adam":
-            optimizer = torch.optim.Adam(self.model.parameters(), self.lr)
+            betas = (self.opt_args["beta1"], self.opt_args["beta2"])
+            optimizer = torch.optim.Adam(
+                self.model.parameters(),
+                lr=self.lr,
+                betas=betas,
+                weight_decay=self.opt_args["weight_decay"])
         elif self.opt_args["name"] == "adamw":
-            optimizer = torch.optim.AdamW(self.model.parameters(), self.lr)
+            betas = (self.opt_args["beta1"], self.opt_args["beta2"])
+            optimizer = torch.optim.AdamW(
+                self.model.parameters(),
+                lr=self.lr,
+                betas=betas,
+                weight_decay=self.opt_args["weight_decay"])
+        elif self.opt_args["name"] == "sgd":
+            optimizer = torch.optim.SGD(
+                self.model.parameters(),
+                lr=self.lr,
+                momentum=self.opt_args["momentum"],
+                weight_decay=self.opt_args["weight_decay"])
         else:
             raise Exception("Invalid optimizer")
 

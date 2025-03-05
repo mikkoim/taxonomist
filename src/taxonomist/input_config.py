@@ -42,6 +42,10 @@ class TaxonomistModelArguments:
     early_stopping_patience: int = 5  # used if early_stopping=True
     lr: float = 1e-4
     opt: str = "adam"
+    opt_weight_decay: float = 0.01
+    opt_beta1: float = 0.9
+    opt_beta2: float = 0.999
+    opt_momentum: float = 0.0
     lr_scheduler: str = None
 
     auto_lr: bool = False
@@ -399,6 +403,34 @@ def add_train_args(parser: argparse.ArgumentParser):
         type=str,
         help="The optimizer name as a string",
         default="adam",
+        required=False,
+    )
+    parser.add_argument(
+        "--opt_weight_decay",
+        type=float,
+        help="The weight decay for the optimizer",
+        default=0.01,
+        required=False,
+    )
+    parser.add_argument(
+        "--opt_beta1",
+        type=float,
+        help="The beta1 parameter for the optimizer",
+        default=0.9,
+        required=False,
+    )
+    parser.add_argument(
+        "--opt_beta2",
+        type=float,
+        help="The beta2 parameter for the optimizer",
+        default=0.999,
+        required=False,
+    )
+    parser.add_argument(
+        "--opt_momentum",
+        type=float,
+        help="The momentum parameter for the optimizer",
+        default=0.0,
         required=False,
     )
     parser.add_argument(

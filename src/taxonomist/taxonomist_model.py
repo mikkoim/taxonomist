@@ -605,7 +605,12 @@ class TaxonomistModel:
         if self.args.opt is None:
             raise ValueError("opt must be set")
 
-        self.opt_params = {"name": self.args.opt}
+        self.opt_params = {"name": self.args.opt,
+                           "lr": self.args.lr,
+                           "weight_decay": self.args.opt_weight_decay,
+                           "momentum": self.args.opt_momentum,
+                           "beta1": self.args.opt_beta1,
+                           "beta2": self.args.opt_beta2}
         print(f"opt_params: {self.opt_params}")
 
     def _create_logger(self, model):
