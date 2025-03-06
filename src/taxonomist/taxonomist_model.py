@@ -7,6 +7,7 @@ from typing import Optional, Union, List
 
 import lightning.pytorch as pl
 import pandas as pd
+import numpy as np
 import torch
 import yaml
 from lightning.pytorch.callbacks import (
@@ -253,7 +254,10 @@ class PathManager:
         """
 
         if task == "feature-extraction":
-            name = f"{self.modelname}_{self.args.feature_extraction}.p.gz"
+            if self.args.feature_extraction == "pooled":
+                name = f"{self.modelname}_{self.args.feature_extraction}.parquet.gzip"
+            else:
+                name = f"{self.modelname}_{self.args.feature_extraction}.p.gz"
             return self.out_folder / name
         elif (task == "classification") or (task == "regression"):
             name = f"{self.ckpt.name}_{self.args.aug}"
@@ -746,9 +750,22 @@ class TaxonomistModel:
         fnames = model.fnames
 
         out_fpath = self.path_manager.predict_fpath
-        with gzip.open(out_fpath, "wb") as f:
-            pickle.dump({"fname": fnames, "y_true": y_true, "features": features}, f)
-        print(out_fpath)
+        if self.args.feature_extraction == 'pooled':
+            features = np.vstack(features)
+            y_true = np.hstack(y_true)
+            fnames = np.hstack(fnames)
+
+            feature_df = pd.DataFrame(features)
+            # Set fname and y_true before features
+            feature_df.insert(0, "fname", fnames)
+            feature_df.insert(1, "y_true", y_true)
+            feature_df.to_parquet(out_fpath, index=False, compression="gzip")
+            print(out_fpath)
+            return
+        else:
+            with gzip.open(out_fpath, "wb") as f:
+                pickle.dump({"fname": fnames, "y_true": y_true, "features": features}, f)
+            print(out_fpath)
 
     def train(self):
         """
@@ -778,7 +795,6 @@ class TaxonomistModel:
         trainer.fit(
             model, dm, ckpt_path=self.ckpt.ckpt_path if self.args.resume else None
         )
-        trainer.test(model, datamodule=dm, ckpt_path="best")
 
         print(
             f"Best model: {callbacks[0].best_model_path} | score: {callbacks[0].best_model_score}"
