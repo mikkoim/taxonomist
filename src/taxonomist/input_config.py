@@ -24,7 +24,7 @@ class TaxonomistModelArguments:
     load_to_memory: bool = False
     tta: bool = False
     tta_n: int = 5
-    test_with: str = "last" # last, best
+    test_with: str = None # None, last, best
 
     model_name: str = "mobilenetv3_large_100.ra_in1k"
     custom_model: bool = False
@@ -35,6 +35,7 @@ class TaxonomistModelArguments:
     inverse_class_map: str = "same"
     feature_extraction: str = None
     return_softmax: bool = False
+    prediction_format: str = "csv"
 
     min_epochs: Optional[int] = None
     max_epochs: Optional[int] = None
@@ -111,6 +112,14 @@ def validate_arguments(args: TaxonomistModelArguments):
     # Check that if the task is regression, the criterion is not cross-entropy
     if args.task == "regression" and args.criterion == "cross-entropy":
         raise ValueError("Cross-entropy loss is not supported for regression tasks.")
+    
+    # Check that the prediction format is one of the allowed values
+    if not args.prediction_format in ["csv", "parquet"]:
+        raise ValueError("prediction_format must be 'csv' or 'parquet'")
+    
+    # Check that the optimizer is one of the allowed values
+    if not args.opt in ["adam", "adamw", "sgd"]:
+        raise ValueError("Only 'adam', 'adamw', or 'sgd' are currently supported as optimizers.")
 
 
 def add_dataset_args(parser: argparse.ArgumentParser):
@@ -248,8 +257,8 @@ def add_dataloader_args(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--test_with",
         type=str,
-        help="Which model to use for test predictions. Can be 'last' or 'best', default 'last'",
-        default="last",
+        help="If set, the model to use for test predictions. Can be 'last' or 'best', default None",
+        default=None,
         required=False,
     )
     return parser
@@ -332,6 +341,13 @@ def add_model_args(parser: argparse.ArgumentParser):
         const=True,
         help="calculates and returns the softmax instead of logits in the prediction script",
         default=False,
+        required=False,
+    )
+    parser.add_argument(
+        "--prediction_format",
+        type=str,
+        help="The format of the predictions. Can be 'csv' or 'parquet'",
+        default="csv",
         required=False,
     )
     return parser

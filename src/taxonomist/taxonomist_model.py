@@ -262,9 +262,14 @@ class PathManager:
             return self.out_folder / name
         elif (task == "classification") or (task == "regression"):
             name = f"{self.ckpt.name}_{self.args.aug}"
+            suffix = ".csv"
             if self.args.tta:
                 name += "_tta"
-            return Path(self.out_folder, name + ".csv")
+            if self.args.return_softmax:
+                name += "_softmax"
+            if self.args.prediction_format == "parquet":
+                suffix = ".parquet.gzip"
+            return Path(self.out_folder, name + suffix)
         else:
             raise ValueError(
                 f"Task must be 'classification', 'regression', or 'feature-extraction'. Got {task}"
@@ -742,7 +747,10 @@ class TaxonomistModel:
 
         out_fpath = self.path_manager.predict_fpath
 
-        df.to_csv(out_fpath, index=True)
+        if self.args.prediction_format == "parquet":
+            df.to_parquet(out_fpath, index=True, compression="gzip")
+        else:
+            df.to_csv(out_fpath, index=True)
         print(out_fpath)
 
     def _handle_features(self, model, dm):
@@ -805,19 +813,20 @@ class TaxonomistModel:
         trainer.fit(
             model, dm, ckpt_path=self.ckpt.ckpt_path if self.args.resume else None
         )
-        if self.args.test_with == "best":
-            print(
-                f"Testing with best model: {callbacks[0].best_model_path} | score: {callbacks[0].best_model_score}"
-            )
-            test_ckpt = callbacks[0].best_model_path
-        elif self.args.test_with == "last":
-            print(
-                f"Testing with last model: {callbacks[1].best_model_path} | score: {callbacks[1].best_model_score}"
-            )
-            test_ckpt = callbacks[1].best_model_path
-        pred_args = self._create_pred_args(test_ckpt)
-        pred_tm = TaxonomistModel(pred_args)
-        pred_tm.predict()
+        if self.args.test_with is not None:
+            if self.args.test_with == "best":
+                print(
+                    f"Testing with best model: {callbacks[0].best_model_path} | score: {callbacks[0].best_model_score}"
+                )
+                test_ckpt = callbacks[0].best_model_path
+            elif self.args.test_with == "last":
+                print(
+                    f"Testing with last model: {callbacks[1].best_model_path} | score: {callbacks[1].best_model_score}"
+                )
+                test_ckpt = callbacks[1].best_model_path
+            pred_args = self._create_pred_args(test_ckpt)
+            pred_tm = TaxonomistModel(pred_args)
+            pred_tm.predict()
 
     def predict(self):
         self.path_manager = PathManager("prediction", self.args, self.ckpt)

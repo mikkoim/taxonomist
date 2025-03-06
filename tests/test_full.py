@@ -99,6 +99,7 @@ def test_combine_cv_folds():
         tag = "rodi_none",
         reference_csv = "data/processed/rodi/01_rodi_processed_5splits_family.csv",
         reference_target = "family",
+        suffix=".csv",
         n_folds = 5
     )
     taxonomist.predictions.combine_cv_predictions(args)

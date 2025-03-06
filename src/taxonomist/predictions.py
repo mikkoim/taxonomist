@@ -3,7 +3,7 @@ from scipy.special import softmax
 import numpy as np
 from dataclasses import dataclass
 from pathlib import Path
-
+import warnings
 
 class TaxonomistPredictions:
     def __init__(self):
@@ -27,9 +27,10 @@ class TaxonomistPredictions:
     def set_class_map(self, class_map):
         self.class_map = class_map
         n_in_class_map = len(class_map["fwd_dict"])
-        if n_in_class_map != self.n_classes:
+        if n_in_class_map == self.n_classes:
             self.classes = class_map["inv"](list(range(self.n_classes)))
         else:
+            warnings.warn("Class map does not match logits shape. Using range(n_classes)")
             self.classes = range(self.n_classes)
 
     def get_y_true_y_pred(self):
