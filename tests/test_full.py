@@ -19,7 +19,7 @@ def _find_ckpt(path):
     return ckpt_path
 
 @pytest.mark.usefixtures("args_basic_train")
-def test_training(args_basic_train):
+def test_training_basic(args_basic_train):
     args = args_basic_train
     tm = TaxonomistModel(args)
     tm.train()

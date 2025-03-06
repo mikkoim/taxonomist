@@ -24,6 +24,7 @@ class TaxonomistModelArguments:
     load_to_memory: bool = False
     tta: bool = False
     tta_n: int = 5
+    test_with: str = "last" # last, best
 
     model_name: str = "mobilenetv3_large_100.ra_in1k"
     custom_model: bool = False
@@ -242,6 +243,13 @@ def add_dataloader_args(parser: argparse.ArgumentParser):
         type=int,
         help="The number of test-time augmentations",
         default=5,
+        required=False,
+    )
+    parser.add_argument(
+        "--test_with",
+        type=str,
+        help="Which model to use for test predictions. Can be 'last' or 'best', default 'last'",
+        default="last",
         required=False,
     )
     return parser

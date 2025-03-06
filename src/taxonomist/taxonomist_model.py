@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union, List
 
+from dataclasses import asdict
 import lightning.pytorch as pl
 import pandas as pd
 import numpy as np
@@ -766,6 +767,15 @@ class TaxonomistModel:
             with gzip.open(out_fpath, "wb") as f:
                 pickle.dump({"fname": fnames, "y_true": y_true, "features": features}, f)
             print(out_fpath)
+    
+    def _create_pred_args(self, ckpt_path):
+        train_args = asdict(self.args)
+        train_args.pop("ckpt_path")
+        train_args.pop("aug")
+        pred_args = TaxonomistModelArguments(**train_args,
+                                             ckpt_path=ckpt_path,
+                                             aug="none")
+        return pred_args
 
     def train(self):
         """
@@ -795,10 +805,19 @@ class TaxonomistModel:
         trainer.fit(
             model, dm, ckpt_path=self.ckpt.ckpt_path if self.args.resume else None
         )
-
-        print(
-            f"Best model: {callbacks[0].best_model_path} | score: {callbacks[0].best_model_score}"
-        )
+        if self.args.test_with == "best":
+            print(
+                f"Testing with best model: {callbacks[0].best_model_path} | score: {callbacks[0].best_model_score}"
+            )
+            test_ckpt = callbacks[0].best_model_path
+        elif self.args.test_with == "last":
+            print(
+                f"Testing with last model: {callbacks[1].best_model_path} | score: {callbacks[1].best_model_score}"
+            )
+            test_ckpt = callbacks[1].best_model_path
+        pred_args = self._create_pred_args(test_ckpt)
+        pred_tm = TaxonomistModel(pred_args)
+        pred_tm.predict()
 
     def predict(self):
         self.path_manager = PathManager("prediction", self.args, self.ckpt)

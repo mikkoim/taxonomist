@@ -66,6 +66,7 @@ taxonomist train \
     --log_dir 'roditest_new' \
     --out_folder 'outputs' \
     --out_prefix 'rodi_new' \
+    --test_with "best" \
     --deterministic 'True'
 ```
 It saves a single model trained with only the first fold to `outputs/rodi/rodi_new_resnet18/f0`
