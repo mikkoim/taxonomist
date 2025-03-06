@@ -355,6 +355,7 @@ class LitModule(pl.LightningModule):
             logits = torch.cat([x["out"] for x in outputs])
             self.logits = logits.cpu().detach().float().numpy()
         self.y_true, self.y_pred = self.common_epoch_end(outputs, "test")
+        self.test_step_outputs.clear()
 
 
 class FeatureExtractionModule(pl.LightningModule):
@@ -423,3 +424,4 @@ class FeatureExtractionModule(pl.LightningModule):
         self.y_true = [x["y_true"] for x in outputs]
         self.features = [x["out"] for x in outputs]
         self.fnames = [x["fname"] for x in outputs]
+        self.test_step_outputs.clear()

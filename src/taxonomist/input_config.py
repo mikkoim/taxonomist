@@ -36,6 +36,8 @@ class TaxonomistModelArguments:
     feature_extraction: str = None
     return_softmax: bool = False
     prediction_format: str = "csv"
+    predict_on_train: bool = False
+    predict_on_val: bool = False
 
     min_epochs: Optional[int] = None
     max_epochs: Optional[int] = None
@@ -348,6 +350,24 @@ def add_model_args(parser: argparse.ArgumentParser):
         type=str,
         help="The format of the predictions. Can be 'csv' or 'parquet'",
         default="csv",
+        required=False,
+    )
+    parser.add_argument(
+        "--predict_on_train",
+        type=lambda x: bool(strtobool(x)),
+        nargs="?",
+        const=True,
+        help="If set, predictions are made on the training set",
+        default=False,
+        required=False,
+    )
+    parser.add_argument(
+        "--predict_on_val",
+        type=lambda x: bool(strtobool(x)),
+        nargs="?",
+        const=True,
+        help="If set, predictions are made on the validation set",
+        default=False,
         required=False,
     )
     return parser

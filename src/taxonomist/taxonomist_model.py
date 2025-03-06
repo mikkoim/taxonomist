@@ -188,6 +188,11 @@ class PathManager:
         if self.args.tta:
             tag += "_tta"
         return tag
+    
+    def predict_fpath_with_prefix(self, prefix: str) -> Path:
+        predict_fpath = Path(self.predict_fpath)
+        predict_fpath = Path(predict_fpath.parents[0], f"{prefix}_{predict_fpath.name}")
+        return Path(predict_fpath)
 
     def _create_train_out_folder(self):
         """
@@ -718,7 +723,7 @@ class TaxonomistModel:
         with open(self.path_manager.config_path, "w") as f:
             f.write(yaml.dump(vars(wandb.config)["_items"]))
 
-    def _handle_predictions(self, model, dm):
+    def _handle_predictions(self, model, dm, set_='test'):
         if not self.args.tta:
             y_true = model.y_true
             y_pred = model.y_pred
@@ -745,7 +750,14 @@ class TaxonomistModel:
         else:
             df = preds.get_full_df(softmax=self.args.return_softmax)
 
-        out_fpath = self.path_manager.predict_fpath
+        if set_ == 'test':
+            out_fpath = self.path_manager.predict_fpath
+        elif set_ == 'val':
+            out_fpath = self.path_manager.predict_fpath_with_prefix("val")
+        elif set_ == 'train':
+            out_fpath = self.path_manager.predict_fpath_with_prefix("train")
+        else:
+            raise ValueError(f"set_ must be 'test', 'val', or 'train'")
 
         if self.args.prediction_format == "parquet":
             df.to_parquet(out_fpath, index=True, compression="gzip")
@@ -753,12 +765,20 @@ class TaxonomistModel:
             df.to_csv(out_fpath, index=True)
         print(out_fpath)
 
-    def _handle_features(self, model, dm):
+    def _handle_features(self, model, dm, set_='test'):
         y_true = model.y_true
         features = model.features
         fnames = model.fnames
 
-        out_fpath = self.path_manager.predict_fpath
+        if set_ == 'test':
+            out_fpath = self.path_manager.predict_fpath
+        elif set_ == 'val':
+            out_fpath = self.path_manager.predict_fpath_with_prefix("val")
+        elif set_ == 'train':
+            out_fpath = self.path_manager.predict_fpath_with_prefix("train")
+        else:
+            raise ValueError(f"set_ must be 'test', 'val', or 'train'")
+
         if self.args.feature_extraction == 'pooled':
             features = np.vstack(features)
             y_true = np.hstack(y_true)
@@ -845,3 +865,21 @@ class TaxonomistModel:
             self._handle_features(model, dm)
         else:
             self._handle_predictions(model, dm)
+        
+        if self.args.predict_on_train:
+            print("Predicting on train set")
+            trainer.test(model, dataloaders=dm.train_dataloader())
+
+            if self.args.task == "feature-extraction":
+                self._handle_features(model, dm, set_='train')
+            else:
+                self._handle_predictions(model, dm, set_='train')
+
+        if self.args.predict_on_val:
+            print("Predicting on val set")
+            trainer.test(model, dataloaders=dm.val_dataloader())
+
+            if self.args.task == "feature-extraction":
+                self._handle_features(model, dm, set_='val')
+            else:
+                self._handle_predictions(model, dm, set_='val')
