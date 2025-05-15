@@ -196,6 +196,11 @@ def group_predictions(args: GroupPredictionsArgs):
     csv_stem = Path(args.predictions).stem
 
     df = _read_table(args.predictions)
+    if not (df.index == range(len(df))).all():
+        df = df.reset_index()
+    if not all(df.columns[:3] == ["fname", "y_true", "y_pred"]):
+        raise ValueError("Something wrong in the predictions dataset. ",
+                         f"First columns are {df.columns[:3]}")
     ref_df = _read_table(args.reference_csv)
 
     if len(ref_df) != len(df):
@@ -226,7 +231,11 @@ def group_predictions(args: GroupPredictionsArgs):
             raise ValueError("Reference column does not match ground truth.")
 
     # Combine predictions and reference
+    if not (df.index == ref_df.index).all():
+        raise ValueError("The indexes dont match")
     comb_df = pd.concat((df, ref_df), axis=1)
+    if len(comb_df) != len(df):
+        raise Exception("Combined dataframe does not match original!")
 
     if args.group_logits:
         group_df = _group_logits(comb_df, df.columns[3:], args)
@@ -243,7 +252,11 @@ def group_predictions(args: GroupPredictionsArgs):
         except np.core._exceptions._UFuncNoLoopError:
             raise Exception("Can't round values. Only regression tasks can be rounded")
 
-    out_name = out_folder / f"{csv_stem}_grouped{args.suffix}.csv"
-    group_df.to_csv(out_name)
+    if (args.predictions.endswith(".parquet")) or (args.predictions.endswith(".parquet.gzip")):
+        out_name = out_folder / f"{csv_stem}_grouped{args.suffix}.parquet.gzip"
+        group_df.to_parquet(out_name, compression="gzip")
+    else:
+        out_name = out_folder / f"{csv_stem}_grouped{args.suffix}.csv"
+        group_df.to_csv(out_name)
     print(f"Saved to {out_name}")
 

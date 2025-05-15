@@ -364,6 +364,7 @@ class FeatureExtractionModule(pl.LightningModule):
         feature_extraction_mode: str,
         model: str,
         custom_model: bool = False,
+        dataset_config_path: str = None,
         freeze_base: bool = False,
         pretrained: bool = True,
         n_classes: int = 0,
@@ -372,22 +373,32 @@ class FeatureExtractionModule(pl.LightningModule):
         lr: float = 1e-4,
         lr_scheduler: dict = None,
         label_transform=None,
+        no_train_metrics: bool = False,
     ):
         """
         The feature exctraction module implements the same interface as the basic LitModule
         for passing LitModule parameters.
         """
         super().__init__()
-        self.save_hyperparameters(ignore=["label_transform"])
-        self.example_input_array = torch.randn((1, 3, 224, 224))
-
         self.feature_extraction_mode = feature_extraction_mode
-        self.model = Model(
-            model=model,
-            freeze_base=freeze_base,
-            pretrained=pretrained,
-            n_classes=n_classes,
-        )
+
+        self.save_hyperparameters(ignore=["label_transform"])
+        if custom_model:
+            self.model = self._setup_custom_model(
+                dataset_config_path=dataset_config_path,
+                model=model,
+                freeze_base=freeze_base,
+                pretrained=pretrained,
+                n_classes=n_classes,
+            )
+        else:
+            self.example_input_array = torch.randn((1, 3, 224, 224))
+            self.model = self._setup_timm_model(
+                model=model,
+                freeze_base=freeze_base,
+                pretrained=pretrained,
+                n_classes=n_classes,
+            )
         self.lr = lr
         self.label_transform = label_transform
         self.criterion = choose_criterion(criterion)
@@ -396,6 +407,19 @@ class FeatureExtractionModule(pl.LightningModule):
         self.training_step_outputs = []
         self.validation_step_outputs = []
         self.test_step_outputs = []
+
+    def _setup_timm_model(self, model, freeze_base, pretrained, n_classes):
+        return Model(
+            model=model,
+            freeze_base=freeze_base,
+            pretrained=pretrained,
+            n_classes=n_classes
+        )
+    
+    def _setup_custom_model(self, dataset_config_path, model, freeze_base, pretrained, n_classes):
+        config_module = load_module_from_path(dataset_config_path)
+        model = config_module.return_custom_model(model, freeze_base, pretrained, n_classes)
+        return model
 
     def forward(self, x):
         if self.feature_extraction_mode == "unpooled":

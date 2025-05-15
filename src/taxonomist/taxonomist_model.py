@@ -261,12 +261,12 @@ class PathManager:
 
         if task == "feature-extraction":
             if self.args.feature_extraction == "pooled":
-                name = f"{self.modelname}_{self.args.feature_extraction}.parquet.gzip"
+                name = f"{self.args.out_prefix}_{self.modelname}_{self.args.feature_extraction}.parquet.gzip"
             else:
-                name = f"{self.modelname}_{self.args.feature_extraction}.p.gz"
+                name = f"{self.args.out_prefix}_{self.modelname}_{self.args.feature_extraction}.p.gz"
             return self.out_folder / name
         elif (task == "classification") or (task == "regression"):
-            name = f"{self.ckpt.name}_{self.args.aug}"
+            name = f"{self.args.out_prefix}_{self.ckpt.name}_{self.args.aug}"
             suffix = ".csv"
             if self.args.tta:
                 name += "_tta"
@@ -430,8 +430,8 @@ class TaxonomistModel:
             mixup=self.args.mixup,
         )
         dm.setup()
-        if visualize:
-            dm.visualize_datasets(self.path_manager.visualization_path)
+        # if visualize:
+        #     dm.visualize_datasets(self.path_manager.visualization_path)
         return dm
 
     def _load_checkpoint(self, model):
@@ -525,6 +525,8 @@ class TaxonomistModel:
             model = FeatureExtractionModule(
                 feature_extraction_mode=self.args.feature_extraction,
                 model=self.args.model_name,
+                custom_model=self.args.custom_model,
+                dataset_config_path=self.args.dataset_config_path,
                 pretrained=True,
             )
         model.freeze()
